@@ -54,7 +54,7 @@ def test_transaction_body_with_multiple_tokens(mock_account_ids):
     dissociate_tx.set_account_id(account_id)
     for token_id in token_ids:
         dissociate_tx.add_token_id(token_id)
-    dissociate_tx.operator_account_id = operator_id 
+    dissociate_tx.operator_account_id = operator_id
     dissociate_tx.transaction_id = generate_transaction_id(account_id)
     dissociate_tx.node_account_id = node_account_id
 
@@ -67,6 +67,22 @@ def test_transaction_body_with_multiple_tokens(mock_account_ids):
     assert len(transaction_body.tokenDissociate.tokens) == len(token_ids)
     for i, token_id in enumerate(token_ids):
         assert transaction_body.tokenDissociate.tokens[i].tokenNum == token_id.num
+
+# This test uses fixture mock_account_ids as parameter
+def test_set_token_ids(mock_account_ids):
+    """Test setting multiple token IDs at once for dissociation."""
+    account_id, _, _, token_id_1, token_id_2 = mock_account_ids
+    token_ids = [token_id_1, token_id_2]
+    another_token_id = MagicMock()
+
+    dissociate_tx = TokenDissociateTransaction()
+    dissociate_tx.set_account_id(account_id)
+    dissociate_tx.set_token_id(another_token_id)
+    assert dissociate_tx.token_ids == [another_token_id]
+
+    dissociate_tx.set_token_ids(token_ids)
+    assert dissociate_tx.token_ids == token_ids
+
 
 def test_missing_fields():
     """Test that building the transaction without account ID or token IDs raises a ValueError."""
