@@ -118,8 +118,8 @@ def token_associate(client, nft_token_id, fungible_token_id, recipient_id, recip
         receipt = (
             TokenAssociateTransaction()
             .set_account_id(recipient_id)
+            .set_token_id(fungible_token_id)
             .add_token_id(nft_token_id)
-            .add_token_id(fungible_token_id)
             .freeze_with(client)
             .sign(recipient_key)  # Recipient must sign to approve
             .execute(client)
@@ -156,8 +156,9 @@ def token_dissociate(client, nft_token_id, fungible_token_id, recipient_id, reci
         receipt = (
             TokenDissociateTransaction()
             .set_account_id(recipient_id)
-            .add_token_id(nft_token_id)
-            .add_token_id(fungible_token_id)
+            # .add_token_id(nft_token_id)
+            # .add_token_id(fungible_token_id)
+            .set_token_ids([nft_token_id, fungible_token_id])
             .freeze_with(client)
             .sign(recipient_key) # Recipient must sign to approve
             .execute(client)

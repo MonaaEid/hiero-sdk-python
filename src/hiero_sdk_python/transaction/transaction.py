@@ -407,18 +407,13 @@ class Transaction(_Executable):
         transaction_body.transactionID.CopyFrom(transaction_id_proto)
         transaction_body.nodeAccountID.CopyFrom(self.node_account_id._to_proto())
 
-        # transaction_body.transactionFee = self.transaction_fee or self._default_transaction_fee
         fee = self.transaction_fee or self._default_transaction_fee
-        # prefer a tinybars conversion method if provided by Hbar class
+
         if hasattr(fee, "to_tinybars"):
             transaction_body.transactionFee = int(fee.to_tinybars())
-        elif hasattr(fee, "to_tinybar") or hasattr(fee, "toTinybars"):
-            # fallback name variations
-            transaction_body.transactionFee = int(
-                getattr(fee, "to_tinybar", getattr(fee, "toTinybars"))()
-            )
         else:
             transaction_body.transactionFee = int(fee)
+
         transaction_body.transactionValidDuration.seconds = self.transaction_valid_duration
         transaction_body.generateRecord = self.generate_record
         transaction_body.memo = self.memo
@@ -444,6 +439,7 @@ class Transaction(_Executable):
             schedulable_body.transactionFee = int(fee.to_tinybars())
         else:
             schedulable_body.transactionFee = int(fee)
+
         schedulable_body.memo = self.memo
         custom_fee_limits = [custom_fee._to_proto() for custom_fee in self.custom_fee_limits]
         schedulable_body.max_custom_fees.extend(custom_fee_limits)
