@@ -106,6 +106,26 @@ class TokenDissociateTransaction(Transaction):
 
         return transaction
 
+    @classmethod
+    def _from_proto(cls, proto: token_dissociate_pb2.TokenDissociateTransactionBody) -> "TokenDissociateTransaction":
+        """
+        Creates a TokenDissociateTransaction instance from a protobuf
+        TokenDissociateTransactionBody object.
+
+        Args:
+            proto (TokenDissociateTransactionBody): The protobuf
+            representation of the token dissociate transaction.
+        """
+        account_id = AccountId._from_proto(proto.account)
+        token_ids = [TokenId._from_proto(token_proto) for token_proto in proto.tokens]
+
+        transaction = cls(
+            account_id=account_id,
+            token_ids=token_ids
+        )
+
+        return transaction
+
     def _build_proto_body(self) -> token_dissociate_pb2.TokenDissociateTransactionBody:
         """
         Returns the protobuf body for the token dissociate transaction.
