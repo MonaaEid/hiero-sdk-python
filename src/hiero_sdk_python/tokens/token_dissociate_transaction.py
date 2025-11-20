@@ -86,7 +86,6 @@ class TokenDissociateTransaction(Transaction):
             if token_id is not None:
                 token_id.validate_checksum(client)
 
-
     @classmethod
     def _from_proto(cls, proto: token_dissociate_pb2.TokenDissociateTransactionBody) -> "TokenDissociateTransaction":
         """
