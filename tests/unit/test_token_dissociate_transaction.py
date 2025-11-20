@@ -161,7 +161,20 @@ def test_to_proto(mock_account_ids, mock_client):
 
     assert proto.signedTransactionBytes
     assert len(proto.signedTransactionBytes) > 0
-    
+
+def test_from_proto(mock_account_ids):
+    """Test creating a TokenDissociateTransaction from a protobuf object."""
+    account_id, _, _, token_id_1, token_id_2 = mock_account_ids
+    dissociate_tx = TokenDissociateTransaction()
+    dissociate_tx.set_account_id(account_id)
+    dissociate_tx.set_token_ids([token_id_1, token_id_2])
+    proto_body = dissociate_tx._build_proto_body()
+    reconstructed_tx = TokenDissociateTransaction._from_proto(proto_body)
+    assert reconstructed_tx.account_id == account_id
+    assert len(reconstructed_tx.token_ids) == 2
+    assert reconstructed_tx.token_ids[0] == token_id_1
+    assert reconstructed_tx.token_ids[1] == token_id_2
+
 def test_build_scheduled_body(mock_account_ids):
     """Test building a scheduled transaction body for token dissociate transaction."""
     account_id, _, _, token_id_1, token_id_2 = mock_account_ids

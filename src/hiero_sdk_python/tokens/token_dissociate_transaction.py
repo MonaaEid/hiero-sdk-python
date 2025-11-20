@@ -79,12 +79,33 @@ class TokenDissociateTransaction(Transaction):
         return self
 
     def _validate_check_sum(self, client) -> None:
+        """Validates the checksums of the account ID and token IDs against the provided client."""
         if self.account_id is not None:
             self.account_id.validate_checksum(client)
         for token_id in (self.token_ids or []):
             if token_id is not None:
                 token_id.validate_checksum(client)
 
+
+    @classmethod
+    def _from_proto(cls, proto: token_dissociate_pb2.TokenDissociateTransactionBody) -> "TokenDissociateTransaction":
+        """
+        Creates a TokenDissociateTransaction instance from a protobuf
+        TokenDissociateTransactionBody object.
+
+        Args:
+            proto (TokenDissociateTransactionBody): The protobuf
+            representation of the token dissociate transaction.
+        """
+        account_id = AccountId._from_proto(proto.account)
+        token_ids = [TokenId._from_proto(token_proto) for token_proto in proto.tokens]
+
+        transaction = cls(
+            account_id=account_id,
+            token_ids=token_ids
+        )
+
+        return transaction
 
     def _build_proto_body(self) -> token_dissociate_pb2.TokenDissociateTransactionBody:
         """
