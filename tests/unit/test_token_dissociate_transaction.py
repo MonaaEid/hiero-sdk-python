@@ -1,11 +1,12 @@
+from unittest.mock import call, MagicMock, Mock
 import pytest
-from unittest.mock import MagicMock
 from hiero_sdk_python.tokens.token_dissociate_transaction import TokenDissociateTransaction
 from hiero_sdk_python.hapi.services import timestamp_pb2
 from hiero_sdk_python.hapi.services.schedulable_transaction_body_pb2 import (
     SchedulableTransactionBody,
 )
 from hiero_sdk_python.transaction.transaction_id import TransactionId
+from hiero_sdk_python.tokens.token_id import TokenId
 
 pytestmark = pytest.mark.unit
 
@@ -54,7 +55,7 @@ def test_transaction_body_with_multiple_tokens(mock_account_ids):
     dissociate_tx.set_account_id(account_id)
     for token_id in token_ids:
         dissociate_tx.add_token_id(token_id)
-    dissociate_tx.operator_account_id = operator_id 
+    dissociate_tx.operator_account_id = operator_id
     dissociate_tx.transaction_id = generate_transaction_id(account_id)
     dissociate_tx.node_account_id = node_account_id
 
@@ -67,6 +68,45 @@ def test_transaction_body_with_multiple_tokens(mock_account_ids):
     assert len(transaction_body.tokenDissociate.tokens) == len(token_ids)
     for i, token_id in enumerate(token_ids):
         assert transaction_body.tokenDissociate.tokens[i].tokenNum == token_id.num
+
+# This test uses fixture mock_account_ids as parameter
+def test_set_token_ids(mock_account_ids):
+    """Test setting multiple token IDs at once for dissociation."""
+    account_id, _, _, token_id_1, token_id_2 = mock_account_ids
+    token_ids = [token_id_1, token_id_2]
+    another_token_id =  Mock(spec=TokenId)
+    
+
+    dissociate_tx = TokenDissociateTransaction()
+    dissociate_tx.set_account_id(account_id)
+    dissociate_tx.set_token_id(another_token_id)
+    assert dissociate_tx.token_ids == [another_token_id]
+
+    dissociate_tx.set_token_ids(token_ids)
+    assert dissociate_tx.token_ids == token_ids
+
+
+def test_validate_check_sum(mock_account_ids, mock_client, monkeypatch):
+    """Test that validate_check_sum method correctly validates account and token IDs."""
+    account_id, _, _, token_id_1, token_id_2 = mock_account_ids
+
+    dissociate_tx = TokenDissociateTransaction()
+    dissociate_tx.set_account_id(account_id)
+    dissociate_tx.set_token_id(token_id_1)
+    dissociate_tx.set_token_id(token_id_2)
+
+    # Mock the validate_checksum methods on the classes to avoid assigning
+    # attributes on frozen dataclass instances.
+    monkeypatch.setattr(type(account_id), "validate_checksum", MagicMock())
+    token_cls = type(token_id_1)
+    monkeypatch.setattr(token_cls, "validate_checksum", MagicMock())
+
+    dissociate_tx._validate_check_sum(mock_client)
+
+    type(account_id).validate_checksum.assert_called_once_with(mock_client)
+    token_validate = type(token_id_1).validate_checksum
+    assert token_validate.call_count == 2
+    token_validate.assert_has_calls([call(mock_client), call(mock_client)])
 
 def test_missing_fields():
     """Test that building the transaction without account ID or token IDs raises a ValueError."""
