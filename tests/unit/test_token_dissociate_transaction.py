@@ -80,7 +80,7 @@ def test_set_token_ids(mock_account_ids):
     dissociate_tx = TokenDissociateTransaction()
     dissociate_tx.set_account_id(account_id)
     dissociate_tx.set_token_id(another_token_id)
-    assert dissociate_tx.token_ids == [another_token_id]
+    assert dissociate_tx.token_ids == another_token_id
 
     dissociate_tx.set_token_ids(token_ids)
     assert dissociate_tx.token_ids == token_ids
@@ -92,8 +92,7 @@ def test_validate_check_sum(mock_account_ids, mock_client, monkeypatch):
 
     dissociate_tx = TokenDissociateTransaction()
     dissociate_tx.set_account_id(account_id)
-    dissociate_tx.set_token_id(token_id_1)
-    dissociate_tx.set_token_id(token_id_2)
+    dissociate_tx.set_token_ids([token_id_1, token_id_2])
 
     # Mock the validate_checksum methods on the classes to avoid assigning
     # attributes on frozen dataclass instances.

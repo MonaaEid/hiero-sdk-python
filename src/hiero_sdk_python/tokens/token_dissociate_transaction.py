@@ -64,14 +64,14 @@ class TokenDissociateTransaction(Transaction):
         self.token_ids.append(token_id)
         return self
 
-    def set_token_id(self, token_id: "TokenId") -> "TokenDissociateTransaction":
+    def set_token_id(self, token_id: TokenId) -> "TokenDissociateTransaction":
         """Adds a token ID to the list of tokens to dissociate from the account.
         """
         self._require_not_frozen()
-        self.token_ids.append(token_id)
+        self.token_ids = token_id
         return self
 
-    def set_token_ids(self, token_ids: List["TokenId"]) -> "TokenDissociateTransaction":
+    def set_token_ids(self, token_ids: List[TokenId]) -> "TokenDissociateTransaction":
         """Sets the list of token IDs to dissociate from the account.
         """
         self._require_not_frozen()
