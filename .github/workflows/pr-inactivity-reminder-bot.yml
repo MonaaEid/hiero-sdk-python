@@ -1,0 +1,37 @@
+# This workflow warns PRs that have had no activity for a specified amount of time(10 Days).
+#
+# You can adjust the behavior by modifying this file.
+# For more information, see:
+# https://github.com/actions/stale
+name: Reminder and mark stale pull requests
+
+on:
+  schedule:
+  - cron: '40 10 * * *'
+
+jobs:
+  stale:
+
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+
+    steps:
+    - uses: actions/stale@v5
+      with:
+        repo-token: ${{ secrets.GITHUB_TOKEN }}
+        stale-pr-message: 'Stale pull request message'
+        stale-pr-label: 'no-pr-activity'
+        days-before-stale: 10
+    
+  unset:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+
+    steps:
+    - uses: actions/stale@v5
+      with:
+        repo-token: ${{ secrets.GITHUB_TOKEN }}
+        days-before-unstale: 1
+        unstale-pr-labels: 'no-pr-activity'
