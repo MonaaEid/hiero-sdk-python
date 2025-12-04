@@ -20,7 +20,7 @@ jobs:
         uses: actions/github-script@v8
         with:
           script: |
-            const daysBefore = 10;
+            const daysBefore = 1;
             const cutoff = new Date(Date.now() - daysBefore * 24 * 60 * 60 * 1000);
 
             const owner = context.repo.owner;
