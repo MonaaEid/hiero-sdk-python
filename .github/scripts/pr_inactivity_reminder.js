@@ -1,4 +1,4 @@
-module.exports = ({github, context}) => {
+module.exports = async ({github, context}) => {
 const inactivityThresholdDays = 10;
 const cutoff = new Date(Date.now() - inactivityThresholdDays * 24 * 60 * 60 * 1000);
 const owner = context.repo.owner;
@@ -80,7 +80,7 @@ for (const pr of prs) {
     continue;
     }
 
-    const comment = `Hi @${pr.user.login},\n\nThis pull request has had no commit activity for ${daysBefore} days. Are you still working on the issue? If you are still working on it, please push a commit or let us know your status.\n\nFrom the Python SDK Team`;
+    const comment = `Hi @${pr.user.login},\n\nThis pull request has had no commit activity for ${inactivityThresholdDays} days. Are you still working on the issue? If you are still working on it, please push a commit or let us know your status.\n\nFrom the Python SDK Team`;
 
     try {
     await github.rest.issues.createComment({
