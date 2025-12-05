@@ -1,26 +1,31 @@
 # This workflow warns PRs that have had no activity for a specified amount of time(10 Days).
 
-name: Reminder and mark stale pull requests
+name: PR Inactivity Reminder
 
 on:
   schedule:
-    - cron: '40 10 * * *'
+    - cron: '0 11 * * *'
   workflow_dispatch:
 
 permissions:
   pull-requests: write
-  issues: write
+
 
 jobs:
   remind_inactive_prs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Harden the runner
+        uses: step-security/harden-runner@df199fb7be9f65074067a9eb93f12bb4c5547cf2 # v2.13.3
+        with:
+          egress-policy: audit
+
       - name: Remind authors of inactive PRs (mention author & add label)
         uses: actions/github-script@v8
         with:
           script: |
-            const daysBefore = 1;
+            const daysBefore = 0;
             const cutoff = new Date(Date.now() - daysBefore * 24 * 60 * 60 * 1000);
 
             const owner = context.repo.owner;
