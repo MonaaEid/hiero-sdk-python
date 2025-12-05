@@ -1,5 +1,5 @@
 module.exports = async ({github, context}) => {
-const inactivityThresholdDays = 10;
+const inactivityThresholdDays = 0;
 const cutoff = new Date(Date.now() - inactivityThresholdDays * 24 * 60 * 60 * 1000);
 const owner = context.repo.owner;
 const repo = context.repo.repo;
