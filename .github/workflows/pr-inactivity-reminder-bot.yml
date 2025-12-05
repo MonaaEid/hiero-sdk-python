@@ -23,7 +23,8 @@ jobs:
           egress-policy: audit
 
       - name: Remind authors of inactive PRs
-        uses: actions/github-script@v8
+      - uses: actions/checkout@v6
+      - uses: actions/github-script@v8
         with:
           script: |
             const script = require('./.github/scripts/pr_inactivity_reminder.js')
