@@ -1,101 +1,92 @@
 module.exports = async ({github, context}) => {
-const inactivityThresholdDays = 0;
+const inactivityThresholdDays = 1;
 const cutoff = new Date(Date.now() - inactivityThresholdDays * 24 * 60 * 60 * 1000);
 const owner = context.repo.owner;
 const repo = context.repo.repo;
-const labelName = 'no-pr-activity';
 
-let labeledCount = 0;
+// Unique marker so we can find the bot's own comment later.
+const marker = '<!-- pr-inactivity-bot-marker -->';
+
+let commentedCount = 0;
 let skippedCount = 0;
 
-// Ensure label exists once up front
-async function ensureLabel() {
-    try {
-    await github.rest.issues.getLabel({ owner, repo, name: labelName });
-    } catch (err) {
-    if (err.status === 404) {
-        await github.rest.issues.createLabel({
-        owner,
-        repo,
-        name: labelName,
-        color: 'EFEFEF',
-        description: 'Pull request has had no development activity (commits)',
-        });
-        console.log(`Created label '${labelName}'`);
-    }
-    }
-}
-await ensureLabel();
-
 const prs = await github.paginate(github.rest.pulls.list, {
-    owner,
-    repo,
-    state: 'open',
-    per_page: 100,
+  owner,
+  repo,
+  state: 'open',
+  per_page: 100,
 });
 
 for (const pr of prs) {
-    let lastCommitDate;
-    try {
-    const commits = await github.rest.pulls.listCommits({
-        owner,
-        repo,
-        pull_number: pr.number,
-        per_page: 1,
-    });
-    const commit = commits.data[0]?.commit;
-    lastCommitDate = new Date(
-    commit?.author?.date ||
-    commit?.committer?.date ||
-    pr.updated_at
-        );
-    } catch (err) {
-    console.log(`Failed to fetch commits for PR #${pr.number}:`, err.message || err);
+  let lastCommitDate;
+  try {
+  const commits = await github.rest.pulls.listCommits({
+      owner,
+      repo,
+      pull_number: pr.number,
+      per_page: 1,
+  });
+  const commit = commits.data[0]?.commit;
+  lastCommitDate = new Date(
+  commit?.author?.date ||
+  commit?.committer?.date ||
+  pr.updated_at
+      );
+  } catch (err) {
+    console.log(`Failed to fetch commit for PR #${pr.number}:`, err.message || err);
     lastCommitDate = new Date(pr.updated_at);
-    }
+  }
 
-    if (lastCommitDate > cutoff) {
+  if (lastCommitDate > cutoff) {
     console.log(`PR #${pr.number} has recent commit on ${lastCommitDate.toISOString()} - skipping`);
     continue;
-    }
+  }
 
-    const hasLabel = pr.labels && pr.labels.some(l => l.name === labelName);
-    if (hasLabel) {
+  // Look for an existing bot comment using our unique marker.
+  let existingBotComment = null;
+  try {
+    const comments = await github.paginate(github.rest.issues.listComments, {
+      owner,
+      repo,
+      issue_number: pr.number,
+      per_page: 100,
+    });
+
+    existingBotComment = comments.find(c => c.body && c.body.includes(marker));
+  } catch (err) {
+    console.log(`Failed to list comments for PR #${pr.number}:`, err.message || err);
+    // If comments can't be fetched, skip to avoid duplicates/spam.
+    continue;
+  }
+
+  if (existingBotComment) {
     skippedCount++;
-    console.log(`PR #${pr.number} already has label '${labelName}' - skipping`);
+    console.log(`PR #${pr.number} already has an inactivity comment (id: ${existingBotComment.id}) - skipping`);
     continue;
-    }
+  }
 
-    try {
-    await github.rest.issues.addLabels({
-        owner,
-        repo,
-        issue_number: pr.number,
-        labels: [labelName],
-    });
-    labeledCount++;
-    console.log(`Added label '${labelName}' to PR #${pr.number}`);
-    } catch (err) {
-    console.log(`Failed to add label for PR #${pr.number}:`, err);
-    continue;
-    }
+  const comment = `${marker}
+    Hi @${pr.user.login},
 
-    const comment = `Hi @${pr.user.login},\n\nThis pull request has had no commit activity for ${inactivityThresholdDays} days. Are you still working on the issue? If you are still working on it, please push a commit or let us know your status.\n\nFrom the Python SDK Team`;
+    This pull request has had no commit activity for ${inactivityThresholdDays} days. Are you still working on the issue? If you are still working on it, please push a commit or let us know your status.
 
-    try {
+    From the Python SDK Team`;
+
+  try {
     await github.rest.issues.createComment({
-        owner,
-        repo,
-        issue_number: pr.number,
-        body: comment,
+      owner,
+      repo,
+      issue_number: pr.number,
+      body: comment,
     });
-    console.log(`Commented PR #${pr.number} (${pr.html_url})`);
-    } catch (commentErr) {
+    commentedCount++;
+    console.log(`Commented on PR #${pr.number} (${pr.html_url})`);
+  } catch (commentErr) {
     console.log(`Failed to comment on PR #${pr.number}:`, commentErr);
-    }
+  }
 }
 
 console.log("=== Summary ===");
-console.log(`PRs labeled: ${labeledCount}`);
-console.log(`PRs skipped (already labeled): ${skippedCount}`);
+console.log(`PRs commented: ${commentedCount}`);
+console.log(`PRs skipped (existing comment present): ${skippedCount}`);
 }
