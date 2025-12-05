@@ -66,7 +66,7 @@ for (const pr of prs) {
   }
 
   const comment = `${marker}
-   Hi @${pr.user.login},\n\nThis pull request has had no development activity for ${daysBefore} days. Are you still working on the issue? Reach out on discord or join our office hours if you need assistance.\n\nFrom the Python SDK Team`;
+   Hi @${pr.user.login},\n\nThis pull request has had no development activity for ${inactivityThresholdDays} days. Are you still working on the issue? Reach out on discord or join our office hours if you need assistance.\n\nFrom the Python SDK Team`;
 
   try {
     await github.rest.issues.createComment({
