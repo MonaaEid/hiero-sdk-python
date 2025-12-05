@@ -1,0 +1,98 @@
+# This workflow warns PRs that have had no activity for a specified amount of time(10 Days).
+
+name: PR Inactivity Reminder
+
+on:
+  schedule:
+    - cron: '0 11 * * *'
+  workflow_dispatch:
+
+permissions:
+  pull-requests: write
+
+
+jobs:
+  remind_inactive_prs:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Harden the runner
+        uses: step-security/harden-runner@df199fb7be9f65074067a9eb93f12bb4c5547cf2 # v2.13.3
+        with:
+          egress-policy: audit
+
+      - name: Remind authors of inactive PRs (mention author & add label)
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const daysBefore = 0;
+            const cutoff = new Date(Date.now() - daysBefore * 24 * 60 * 60 * 1000);
+
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const labelName = 'no-pr-activity';
+
+            // get all open PRs (paginate)
+            const prs = await github.paginate(github.rest.pulls.list, {
+              owner,
+              repo,
+              state: 'open',
+              per_page: 100,
+            });
+
+            for (const pr of prs) {
+              const updatedAt = new Date(pr.updated_at);
+              if (updatedAt > cutoff) continue; // recent activity — skip
+
+              // skip if already labeled (prevents duplicate reminders)
+              const hasLabel = pr.labels && pr.labels.some(l => l.name === labelName);
+              if (hasLabel) continue;
+
+              // ensure label exists (create if missing)
+              try {
+                await github.rest.issues.addLabels({
+                  owner,
+                  repo,
+                  issue_number: pr.number,
+                  labels: [labelName],
+                });
+              } catch (err) {
+                // if label doesn't exist, create it then add
+                if (err.status === 404 || (err.message && err.message.includes('Label does not exist'))) {
+                  try {
+                    await github.rest.issues.createLabel({
+                      owner,
+                      repo,
+                      name: labelName,
+                      color: 'EFEFEF',
+                      description: 'Pull request has had no development activity',
+                    });
+                    await github.rest.issues.addLabels({
+                      owner,
+                      repo,
+                      issue_number: pr.number,
+                      labels: [labelName],
+                    });
+                  } catch (createErr) {
+                    console.log(`Failed to create/add label for PR #${pr.number}:`, createErr);
+                  }
+                } else {
+                  console.log(`Failed to add label for PR #${pr.number}:`, err);
+                }
+              }
+
+              // post a comment mentioning the PR author
+              const comment = `Hi @${pr.user.login},\n\nThis pull request has had no development activity for ${daysBefore} days. Are you still working on the issue? Reach out on discord or join our office hours if you need assistance.\n\nFrom the Python SDK Team`;
+
+              try {
+                await github.rest.issues.createComment({
+                  owner,
+                  repo,
+                  issue_number: pr.number,
+                  body: comment,
+                });
+                console.log(`Commented and labeled PR #${pr.number} (${pr.html_url})`);
+              } catch (commentErr) {
+                console.log(`Failed to comment on PR #${pr.number}:`, commentErr);
+              }
+            }
