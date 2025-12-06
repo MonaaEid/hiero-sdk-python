@@ -78,7 +78,7 @@ Are you still working on the issue? Reach out on discord or join our office hour
 
 // Main module function
 module.exports = async ({github, context}) => {
-  const inactivityThresholdDays = 10; // days of inactivity before commenting
+  const inactivityThresholdDays = 2; // days of inactivity before commenting
   const cutoff = new Date(Date.now() - inactivityThresholdDays * 24 * 60 * 60 * 1000);
   const owner = context.repo.owner;
   const repo = context.repo.repo;
