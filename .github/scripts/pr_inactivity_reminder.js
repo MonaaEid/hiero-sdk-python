@@ -55,9 +55,10 @@ async function hasExistingBotComment(github, pr, owner, repo, marker) {
 }
 
 // Helper to post an inactivity comment
-async function postInactivityComment(github, pr, owner, repo, marker, inactivityThresholdDays) {
+async function postInactivityComment(github, pr, owner, repo, marker, inactivityThresholdDays, discordLink, office_hours_calender) {
   const comment = `${marker}
-Hi @${pr.user.login},\n\nThis pull request has had no commit activity for ${inactivityThresholdDays} days. Are you still working on the issue? Reach out on discord or join our office hours if you need assistance.\n\n- Discord: ${discordLink}\n- Office Hours: ${office_hours_calender} \n\nFrom the Python SDK Team`;
+Hi @${pr.user.login},\n\nThis pull request has had no commit activity for ${inactivityThresholdDays} days. 
+Are you still working on the issue? Reach out on discord or join our office hours if you need assistance.\n\n- Discord: ${discordLink}\n- Office Hours: ${office_hours_calender} \n\nFrom the Python SDK Team`;
 
   try {
     await github.rest.issues.createComment({
