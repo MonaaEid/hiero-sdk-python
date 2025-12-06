@@ -1,6 +1,7 @@
 // Helper to get the last commit date of a PR
 async function getLastCommitDate(github, pr, owner, repo) {
   try {
+     // Prefer fetching the head commit via the PR head SHA — this reliably gives the latest commit
     if (pr.head && pr.head.sha) {
       const headRepoOwner = pr.head.repo?.owner?.login || owner;
       const headRepoName = pr.head.repo?.name || repo;
@@ -13,8 +14,8 @@ async function getLastCommitDate(github, pr, owner, repo) {
         const commit = commitRes.data?.commit;
         return new Date(commit?.author?.date || commit?.committer?.date || pr.updated_at);
       } catch (getCommitErr) {
+         // fallback to listing commits if getCommit fails (e.g., missing permissions on fork)
         console.log(`Failed to fetch head commit ${pr.head.sha} for PR #${pr.number}:`, getCommitErr.message || getCommitErr);
-        // Fallback: list commits
         const commits = await github.rest.pulls.listCommits({ owner, repo, pull_number: pr.number, per_page: 100 });
         if (commits.data?.length) {
           const last = commits.data[commits.data.length - 1].commit;
@@ -23,7 +24,7 @@ async function getLastCommitDate(github, pr, owner, repo) {
         return new Date(pr.updated_at);
       }
     } else {
-      // No head sha: fallback to commits list
+     // No head sha available - list commits and take the most recent
       const commits = await github.rest.pulls.listCommits({ owner, repo, pull_number: pr.number, per_page: 100 });
       if (commits.data?.length) {
         const last = commits.data[commits.data.length - 1].commit;
@@ -37,7 +38,7 @@ async function getLastCommitDate(github, pr, owner, repo) {
   }
 }
 
-// Helper to check if bot has already commented
+// Look for an existing bot comment using our unique marker.
 async function hasExistingBotComment(github, pr, owner, repo, marker) {
   try {
     const comments = await github.paginate(github.rest.issues.listComments, {
@@ -79,6 +80,7 @@ module.exports = async ({github, context}) => {
   const cutoff = new Date(Date.now() - inactivityThresholdDays * 24 * 60 * 60 * 1000);
   const owner = context.repo.owner;
   const repo = context.repo.repo;
+  // Unique marker so we can find the bot's own comment later.
   const marker = '<!-- pr-inactivity-bot-marker -->';
 
   let commentedCount = 0;
