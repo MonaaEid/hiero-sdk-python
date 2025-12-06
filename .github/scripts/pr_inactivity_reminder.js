@@ -113,7 +113,7 @@ module.exports = async ({github, context}) => {
     }
 
     // 3. Post inactivity comment
-    const commented = await postInactivityComment(github, pr, owner, repo, marker, inactivityThresholdDays);
+    const commented = await postInactivityComment(github, pr, owner, repo, marker, inactivityThresholdDays, discordLink, office_hours_calender);
     if (commented) commentedCount++;
   }
 
