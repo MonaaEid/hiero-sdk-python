@@ -56,10 +56,10 @@ async function hasExistingBotComment(github, pr, owner, repo, marker) {
 }
 
 // Helper to post an inactivity comment
-async function postInactivityComment(github, pr, owner, repo, marker, inactivityThresholdDays, discordLink, office_hours_calender) {
+async function postInactivityComment(github, pr, owner, repo, marker, inactivityThresholdDays, discordLink, office_hours_calendar) {
   const comment = `${marker}
 Hi @${pr.user.login},\n\nThis pull request has had no commit activity for ${inactivityThresholdDays} days. 
-Are you still working on the issue? Reach out on discord or join our office hours if you need assistance.\n\n- ${discordLink}\n- ${office_hours_calender} \n\nFrom the Python SDK Team`;
+Are you still working on the issue? Reach out on discord or join our office hours if you need assistance.\n\n- ${discordLink}\n- ${office_hours_calendar} \n\nFrom the Python SDK Team`;
 
   try {
     await github.rest.issues.createComment({
@@ -83,7 +83,7 @@ module.exports = async ({github, context}) => {
   const owner = context.repo.owner;
   const repo = context.repo.repo;
   const discordLink = `[Discord](https://github.com/hiero-ledger/hiero-sdk-python/blob/main/docs/discord.md)`;
-  const office_hours_calender =`[Office Hours](https://zoom-lfx.platform.linuxfoundation.org/meetings/hiero?view=week)`; 
+  const office_hours_calendar =`[Office Hours](https://zoom-lfx.platform.linuxfoundation.org/meetings/hiero?view=week)`; 
   // Unique marker so we can find the bot's own comment later.
   const marker = '<!-- pr-inactivity-bot-marker -->';
 
@@ -114,7 +114,7 @@ module.exports = async ({github, context}) => {
     }
 
     // 3. Post inactivity comment
-    const commented = await postInactivityComment(github, pr, owner, repo, marker, inactivityThresholdDays, discordLink, office_hours_calender);
+    const commented = await postInactivityComment(github, pr, owner, repo, marker, inactivityThresholdDays, discordLink, office_hours_calendar);
     if (commented) commentedCount++;
   }
 
