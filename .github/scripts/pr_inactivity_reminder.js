@@ -81,8 +81,8 @@ module.exports = async ({github, context}) => {
   const cutoff = new Date(Date.now() - inactivityThresholdDays * 24 * 60 * 60 * 1000);
   const owner = context.repo.owner;
   const repo = context.repo.repo;
-  const discordLink = "https://github.com/hiero-ledger/hiero-sdk-python/blob/main/docs/discord.md";
-  const office_hours_calender = "https://zoom-lfx.platform.linuxfoundation.org/meetings/hiero?view=week"; 
+  const discordLink = `[Discord](https://github.com/hiero-ledger/hiero-sdk-python/blob/main/docs/discord.md)`;
+  const office_hours_calender =`[Office Hours](https://zoom-lfx.platform.linuxfoundation.org/meetings/hiero?view=week)`; 
   // Unique marker so we can find the bot's own comment later.
   const marker = '<!-- pr-inactivity-bot-marker -->';
 
