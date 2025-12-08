@@ -1,4 +1,4 @@
-# _Executable Class Crash Course
+# _Executable Class Training
 
 ## Table of Contents
 
@@ -13,25 +13,40 @@
 ## Introduction to _Executable
  * The _Executable class is the backbone of the Hedera SDK execution engine. It handles sending transactions and queries, retry logic, error mapping, and logging, allowing child classes (like Transaction and Query) to focus on business logic.
 
+```mermaid
+graph TD;
+    _Executable-->Transaction;
+    _Executable-->Query;
+    Query-->TokenNftInfoQuery;
+    Query-->TokenInfoQuery;
+    Transaction-->TokenFreezeTransaction;
+    Transaction-->TokenDissociateTransaction;
+```
 
 
 ## Execution Flow
 
--How _execute(client) works
-execution flow in the Hedera SDK:
+-How _execute(client) works in the Hedera SDK?
 
-The typical execution flow for transactions and queries using the Executable interface follows these steps:
+ The typical execution flow for transactions and queries using the Executable interface follows these steps:
 
-1. **Build** → Create the transaction/query with required parameters
-2. **FreezeWith(client)** → Locks the transaction for signing
-3. **Sign(privateKey)** → Add required signatures
-4. **Execute(client)** → Submit to the network
-5. **GetReceipt(client)** → Confirm success/failure
+ 1. **Build** → Create the transaction/query with required parameters
+ 2. **FreezeWith(client)** → Locks the transaction for signing
+ 3. **Sign(privateKey)** → Add required signatures
+ 4. **Execute(client)** → Submit to the network
+ 5. **GetReceipt(client)** → Confirm success/failure
 
 
--Node selection, gRPC method execution, and request building
+Here’s how child classes hook into the execution pipeline:
 
--How child classes plug in via _make_request, _get_method, _map_response, etc.
+| Command | Description |
+| --- | --- |
+| `_make_request` | Build the protobuf request for this operation. Example: a transaction class serializes its body into a Transaction proto; a query class builds the appropriate query proto. |
+| `_get_method(channel: _Channel) -> _Method` | Choose which gRPC stub method to call. You get service stubs from channel, then return _Method(transaction_func=...) for transactions or _Method(query_func=...) for queries. The executor calls _execute_method, which picks transaction if present, otherwise query. |
+| `_map_status_error(response)` | Inspect the network response status and convert it to an appropriate exception (precheck/receipt). This lets the executor decide whether to raise or retry based on _should_retry. |
+| `_should_retry(response) -> _ExecutionState` | _ExecutionState: Decide the execution state from the response/status: RETRY, FINISHED, ERROR, or EXPIRED. This drives the retry loop and backoff. |
+| `_map_response(response, node_id, proto_request)` | Convert the raw gRPC/Proto response into the SDK’s response type (e.g., TransactionResponse, Query result) that gets returned to the caller. |
+
 
 ## Retry Logic
  - Core Logic:
@@ -40,7 +55,7 @@ The typical execution flow for transactions and queries using the Executable int
   3. Execute and check response — After execution, determine if we should retry, fail, or succeed
   4. Smart error handling — Different errors trigger different actions
 
-<img width="500" height="500" alt="retry logic" src="https://github.com/user-attachments/assets/90f686e2-8867-4daa-a83f-9b0bd613fb16" />
+<img width="600" height="600" alt="image" src="https://github.com/user-attachments/assets/85f2859a-02db-4d74-8349-403dfe307e14" />
 
 
 **_Retry logic = Try the operation, wait progressively longer between attempts, pick a different node if needed, and give up after max attempts. This makes the system resilient to temporary network hiccups._**
@@ -57,8 +72,50 @@ Key Steps:
 
   _(Why? Gives the network time to recover between attempts without hammering it immediately.)_
 
-Execution States
-  The response is checked via `_should_retry()` which returns one of four states:
+
+Error Handling
+```python
+except grpc.RpcError as e:
+    err_persistant = f"Status: {e.code()}, Details: {e.details()}"
+    node = client.network._select_node()  # Switch nodes
+    logger.trace("Switched to a different node...", "error", err_persistant)
+    continue  # Retry with new node
+```
+Retryable gRPC codes:
+
+  * `UNAVAILABLE — Node` down/unreachable
+  * `DEADLINE_EXCEEDED` — Request timeout
+  * `RESOURCE_EXHAUSTED` — Rate limited
+  * `INTERNAL` — Server error
+  _(If the [gRPC](https://en.wikipedia.org/wiki/GRPC) call itself fails, switch to a different network node and retry.)_
+
+## Error Handling
+
+ * Mapping network errors to Python exceptions
+ Abstract method that child classes implement:
+ ```python
+ @abstractmethod
+ def _map_status_error(self, response):
+     """Maps a response status code to an appropriate error object."""
+     raise NotImplementedError(...)
+ ```
+
+ * Precheck errors --> PrecheckError (e.g., invalid account, insufficient balance)
+ * Receipt errors --> ReceiptStatusError (e.g., transaction executed but failed)
+ * Other statuses --> Appropriate exception types based on the status code
+
+
+ *Retryable vs Fatal Errors
+  Determined by _should_retry(response) → _ExecutionState:
+
+ ```python
+ @abstractmethod
+ def _should_retry(self, response) -> _ExecutionState:
+     """Determine whether the operation should be retried based on the response."""
+     raise NotImplementedError(...)
+ ```
+
+  The response is checked via `_should_retry()` which returns one of four `Execution States`:
 
 | State          | Action                                  |                                        
 | :--------------| :---------------------------------------| 
@@ -67,23 +124,7 @@ Execution States
 | **ERROR**      | `Permanent failure, raise exception`    |
 | **EXPIRED**    | `Request expired, raise exception`      | 
 
-Error Handling
-```python
-except grpc.RpcError as e:
-    # Network/gRPC error occurred
-    err_persistant = f"Status: {e.code()}, Details: {e.details()}"
-    node = client.network._select_node()  # Switch nodes
-    continue  # Retry with different node
-```
-If the [gRPC](https://en.wikipedia.org/wiki/GRPC) call itself fails, switch to a different network node and retry.
 
-_##_ Error Handling
-
--Mapping network errors to Python exceptions
-
--Retryable vs fatal errors
-
--MaxAttemptsError and other exception cases
 
 ## Logging & Debugging
 
@@ -94,32 +135,4 @@ _##_ Error Handling
 -Tips for debugging transaction/query failures
 
 ## Practical Examples
-
--Illustrate how a child class (Transaction or Query) implements _Executable abstract methods
-
-Step-by-step example of a transaction execution
-
--How the response is mapped back to a usable SDK object
-
--Visual Diagram (Optional but Recommended)
-
--Show _Executable as the parent class
-
--Child classes inheriting and plugging into the execution flow
-
--Flow of request → execution → retry → response mapping
-
-Requirements
-
--Written in clear, beginner-friendly Markdown
-
--Include code snippets to illustrate concepts
-
--Include diagrams if possible
-
--Use Hedera-specific terminology appropriately
-
--Make it easy to follow for developers new to Hedera SDK
-
-Optional: example scripts illustrating
 
