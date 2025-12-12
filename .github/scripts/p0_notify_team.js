@@ -2,16 +2,28 @@
 
 const dryRun = (process.env.DRY_RUN || 'false').toString().toLowerCase() === 'true';
 
-async function resolveIssueLabels(issue) {
+async function resolveIssueLabels(github, ownerName, repoName, issueObj) {
     try {
-        const p0Label = issue.labels.filter(label => label.name.toLowerCase() === 'p0');
-        console.log(`Labels for Issue #${issue.number}:`, labels.map(l => l.name).join(', '));
-        return p0Label;
+      if (Array.isArray(issueObj.labels) && issueObj.labels.length > 0) {
+        console.log(`Using labels from payload for Issue #${issueObj.number}`);
+        return issueObj.labels;
+      }
 
+      console.log(`Fetching labels from API for Issue #${issueObj.number}`);
+      const labels = await github.paginate(github.rest.issues.listLabelsOnIssue, {
+        owner: ownerName,
+        repo: repoName,
+        issue_number: issueObj.number,
+        per_page: 100,
+      });
+
+      return Array.isArray(labels) ? labels : [];
     } catch (err) {
-        console.log(`Failed to fetch labels for Issue #${issue.number}:`, err.message || err);
+      console.log(`Failed to resolve labels for Issue #${issueObj.number}:`, err.message || err);
+      // Return empty array so callers can operate safely.
+      return [];
     }
-}
+  }
 
 
 // for an existing bot comment using our unique marker.
@@ -66,6 +78,11 @@ module.exports = async ({github, context}) => {
     const marker = '<!-- P0 Issue Notification -->';
     const issue = context.payload.issue;
     
+    // Early return if no issue in payload (e.g., scheduled or manual runs without issue context)
+    if (!issue || !issue.number) {
+        console.log('No issue found in payload. Skipping notification.');
+        return;
+    }
 
     // Check for existing bot comment first
     const existingBotComment = await hasExistingBotComment(github, issue, owner, repo, marker);
@@ -74,8 +91,15 @@ module.exports = async ({github, context}) => {
         return;
     }
     // Check if the issue has the 'P0' label
-    const labels = await resolveIssueLabels(issue);
-    const hasP0Label = labels.some(label => label.name.toLowerCase() === 'p0');
+    // const labels = await resolveIssueLabels(issue);
+    // const hasP0Label = labels.some(label => label.name.toLowerCase() === 'p0');
+    // if (!hasP0Label) {
+    //     console.log(`Issue #${issue.number} does not have the 'P0' label. No notification posted.`);
+    //     return;
+    // }
+    const labels = await resolveIssueLabels(github, owner, repo, issue);
+    const hasP0Label = Array.isArray(labels) && labels.some(label => (label && label.name && label.name.toLowerCase()) === 'p0');
+
     if (!hasP0Label) {
         console.log(`Issue #${issue.number} does not have the 'P0' label. No notification posted.`);
         return;
