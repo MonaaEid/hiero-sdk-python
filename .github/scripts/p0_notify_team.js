@@ -54,24 +54,34 @@ module.exports = async ({github, context}) => {
     const repo = context.repo.repo;
     const marker = '<!-- P0 Issue Notification -->';
     
-    // Only proceed if the issue is labeled as P0
+    // Check if issue exists in the payload
     const issue = context.payload.issue;
+    if (!issue) {
+        console.log('No issue found in context payload. This script should be triggered by issue events only.');
+        return;
+    }
+    
     const labels = (issue.labels || []).map(label => label.name);
-    if (labels.includes('P0')) {
-        await postNotifyP0IssueComment(github, issue, owner, repo, marker);
-    } else {
+    
+    // Only proceed if the issue is labeled as P0
+    if (!labels.includes('P0')) {
         console.log(`Issue #${issue.number} is not labeled as P0. No action taken.`);
+        return;
     }
 
+    // Check for existing bot comment first
     const existingBotComment = await hasExistingBotComment(github, issue, owner, repo, marker);
     if (existingBotComment) {
         console.log(`A P0 notification comment already exists on Issue #${issue.number}. No duplicate comment posted.`);
         return;
     }
 
-      console.log("=== Summary ===");
-        console.log(`Repository: ${owner}/${repo}`);
-        console.log(`Issue Number: ${issue.number}`);
-        console.log(`Issue Title: ${issue.title}`);
-        console.log(`Labels: ${labels.join(', ')}`);
-    };
+    // Post the notification comment
+    await postNotifyP0IssueComment(github, issue, owner, repo, marker);
+
+    console.log("=== Summary ===");
+    console.log(`Repository: ${owner}/${repo}`);
+    console.log(`Issue Number: ${issue.number}`);
+    console.log(`Issue Title: ${issue.title}`);
+    console.log(`Labels: ${labels.join(', ')}`);
+};
