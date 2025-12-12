@@ -9,9 +9,15 @@ on:
         description: 'If true, do not post comments (dry run). Accepts "true" or "false". Default true for manual runs.'
         required: false
         default: 'true'
+      payload:
+        description: 'The webhook payload of the issue event. If not provided, the payload from the workflow run event will be used.'
+        required: true
+        default: '{"action":"labeled","issue":{"number":42,"title":"Test issue"},"label":{"name":"bug"}}'
 
   issues:
-    types: [opened]
+    types:
+      - opened
+      - labeled
 
 permissions:
   issues: write
@@ -31,7 +37,7 @@ jobs:
           egress-policy: audit
       - name: Checkout repository
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 
-      - name: Remind authors of inactive PRs
+      - name: Notify team of P0 issues
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           DRY_RUN: ${{ env.DRY_RUN }}

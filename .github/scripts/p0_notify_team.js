@@ -2,8 +2,19 @@
 
 const dryRun = (process.env.DRY_RUN || 'false').toString().toLowerCase() === 'true';
 
+async function resolveIssueLabels(issue) {
+    try {
+        const p0Label = issue.labels.filter(label => label.name.toLowerCase() === 'p0');
+        console.log(`Labels for Issue #${issue.number}:`, labels.map(l => l.name).join(', '));
+        return p0Label;
 
-// Look for an existing bot comment using our unique marker.
+    } catch (err) {
+        console.log(`Failed to fetch labels for Issue #${issue.number}:`, err.message || err);
+    }
+}
+
+
+// for an existing bot comment using our unique marker.
 async function hasExistingBotComment(github, issue, owner, repo, marker) {
      try {
     const comments = await github.paginate(github.rest.issues.listComments, {
@@ -53,25 +64,30 @@ module.exports = async ({github, context}) => {
     const owner = context.repo.owner;
     const repo = context.repo.repo;
     const marker = '<!-- P0 Issue Notification -->';
-    
-    // Only proceed if the issue is labeled as P0
     const issue = context.payload.issue;
-    const labels = (issue.labels || []).map(label => label.name);
-    if (labels.includes('P0')) {
-        await postNotifyP0IssueComment(github, issue, owner, repo, marker);
-    } else {
-        console.log(`Issue #${issue.number} is not labeled as P0. No action taken.`);
-    }
+    
 
+    // Check for existing bot comment first
     const existingBotComment = await hasExistingBotComment(github, issue, owner, repo, marker);
     if (existingBotComment) {
         console.log(`A P0 notification comment already exists on Issue #${issue.number}. No duplicate comment posted.`);
         return;
     }
+    // Check if the issue has the 'P0' label
+    const labels = await resolveIssueLabels(issue);
+    const hasP0Label = labels.some(label => label.name.toLowerCase() === 'p0');
+    if (!hasP0Label) {
+        console.log(`Issue #${issue.number} does not have the 'P0' label. No notification posted.`);
+        return;
+    }
 
-      console.log("=== Summary ===");
-        console.log(`Repository: ${owner}/${repo}`);
-        console.log(`Issue Number: ${issue.number}`);
-        console.log(`Issue Title: ${issue.title}`);
-        console.log(`Labels: ${labels.join(', ')}`);
-    };
+
+    // Post the notification comment
+    await postNotifyP0IssueComment(github, issue, owner, repo, marker);
+
+    console.log("=== Summary ===");
+    console.log(`Repository: ${owner}/${repo}`);
+    console.log(`Issue Number: ${issue.number}`);
+    console.log(`Issue Title: ${issue.title}`);
+    console.log(`Labels: ${labels.join(', ')}`);
+};
