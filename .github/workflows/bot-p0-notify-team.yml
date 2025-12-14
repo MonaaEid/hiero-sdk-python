@@ -3,10 +3,6 @@
 on:
   workflow_dispatch: 
     inputs:
-      dry_run: 
-        description: 'If true, do not post comments (dry run). Accepts "true" or "false". Default true for manual runs.'
-        required: false
-        default:  'true'
       payload:
         description: 'Custom webhook payload for testing (JSON). Example: {"action":"labeled","issue":{"number": 42,"title":"Test issue","labels":[{"name":"p0"}]},"label":{"name":"p0"}}'
         required: false
@@ -32,8 +28,6 @@ jobs:
          (github.event.action == 'labeled' && github.event.label && 
           (github.event.label.name == 'p0' || github. event.label.name == 'P0'))
       ))
-    env:
-      DRY_RUN:  ${{ github.event.inputs. dry_run || 'false' }}
 
     steps:
       - name:  Harden the runner
