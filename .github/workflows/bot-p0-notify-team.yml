@@ -5,7 +5,7 @@ on:
     inputs:
       payload:
         description: 'Custom webhook payload for testing (JSON). Example: {"action":"labeled","issue":{"number": 42,"title":"Test issue","labels":[{"name":"p0"}]},"label":{"name":"p0"}}'
-        required: false
+        required: true
         default: '{"action":"opened","issue":{"number":789,"title":"New P0 issue","labels":[{"name":"p0"}],"html_url":"https://github.com/owner/repo/issues/789"}}'
 
   issues:
@@ -46,19 +46,5 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
         with:
           script: |
-            const script = require('./.github/scripts/p0_notify_team.js');
-            
-            // Parse custom payload if provided (for manual testing)
-            let customPayload = null;
-            if (process.env.CUSTOM_PAYLOAD && process.env.CUSTOM_PAYLOAD.trim() !== '') {
-              try {
-                customPayload = JSON.parse(process.env.CUSTOM_PAYLOAD);
-                console.log('Using custom payload for testing:', JSON.stringify(customPayload, null, 2));
-              } catch (e) {
-                console. error('Failed to parse custom payload:', e.message);
-                core.setFailed('Invalid JSON in payload input');
-                return;
-              }
-            }
-            
-            await script({ github, context, customPayload });
+            const script = require('./.github/scripts/p0_notify_team.js');      
+            await script({ github, context});
