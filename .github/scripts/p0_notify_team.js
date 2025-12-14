@@ -70,7 +70,7 @@ if (customPayload) {
     }
   }
 
-module.exports = async ({ github, context, customPayload = null }) => {
+module.exports = async ({ github, context}) => {
   const owner = context.repo && context.repo.owner;
   const repo = context.repo && context.repo.repo;
   const marker = '<!-- P0 Issue Notification -->';
