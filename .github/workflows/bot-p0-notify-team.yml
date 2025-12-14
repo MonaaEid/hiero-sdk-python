@@ -1,4 +1,5 @@
 # This workflow warns the team about P0 issues immediately when they are created.
+name: P0 Notify Team 
 
 on:
   workflow_dispatch: 

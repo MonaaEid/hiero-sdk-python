@@ -43,18 +43,18 @@ const customPayload = process.env.CUSTOM_PAYLOAD ? JSON.parse(process.env.CUSTOM
   }
 
   async function postNotifyP0IssueComment(github, owner, repo, issue, marker) {
-    const comment = `${marker} :rotating_light: Attention Team : rotating_light: 
-@team-python-sdk/triage
+    const comment = `${marker} :rotating_light: Attention Team :rotating_light: 
+    @team-python-sdk/triage
+    @monaaEid
+    A new P0 issue has been created: #${issue.number} - ${issue.title || '(no title)'}
+    Please prioritize this issue accordingly.
 
-A new P0 issue has been created: #${issue.number} - ${issue.title || '(no title)'}
-Please prioritize this issue accordingly.
-
-Best Regards,
-Automated Notification System`;
-if (customPayload) {
-  console.log('CUSTOM PAYLOAD: would post comment on Issue #' + issue.number + ' (' + issue.html_url + ') with body:\n---\n' + comment + '\n---');
-  return true;
-}
+    Best Regards,
+    Automated Notification System`;
+    if (customPayload) {
+      console.log('CUSTOM PAYLOAD: would post comment on Issue #' + issue.number + ' (' + issue.html_url + ') with body:\n---\n' + comment + '\n---');
+      return true;
+    }
     try {
       await github.rest.issues. createComment({
         owner,
