@@ -1,21 +1,19 @@
-# This workflow warns the team about P0 issues imediately when they are created.
+# This workflow warns the team about P0 issues immediately when they are created.
 
 on:
-  schedule:
-    - cron: '30 11 * * *'
-  workflow_dispatch:
+  workflow_dispatch: 
     inputs:
-      dry_run:
+      dry_run: 
         description: 'If true, do not post comments (dry run). Accepts "true" or "false". Default true for manual runs.'
         required: false
-        default: 'true'
+        default:  'true'
       payload:
-        description: 'The webhook payload of the issue event. If not provided, the payload from the workflow run event will be used.'
-        required: true
-        default: '{"action":"labeled","issue":{"number":42,"title":"Test issue"},"label":{"name":"bug"}}'
+        description: 'Custom webhook payload for testing (JSON). Example: {"action":"labeled","issue":{"number": 42,"title":"Test issue","labels":[{"name":"p0"}]},"label":{"name":"p0"}}'
+        required: false
+        default: '{"action":"opened","issue":{"number":789,"title":"New P0 issue","labels":[{"name":"p0"}],"html_url":"https://github.com/owner/repo/issues/789"}}'
 
   issues:
-    types:
+    types: 
       - opened
       - labeled
 
@@ -23,26 +21,50 @@ permissions:
   issues: write
   contents: read
 
-
-jobs:
+jobs: 
   p0_notify_team:
     runs-on: ubuntu-latest
+    # Only run for workflow_dispatch, issues opened, or issues labeled with 'p0' (case-insensitive)
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'issues' && (
+         github.event.action == 'opened' ||
+         (github.event.action == 'labeled' && github.event.label && 
+          (github.event.label.name == 'p0' || github. event.label.name == 'P0'))
+      ))
     env:
-      DRY_RUN: ${{ github.event.inputs.dry_run || 'false' }}
+      DRY_RUN:  ${{ github.event.inputs. dry_run || 'false' }}
 
     steps:
-      - name: Harden the runner
+      - name:  Harden the runner
         uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
         with:
           egress-policy: audit
+
       - name: Checkout repository
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
+
       - name: Notify team of P0 issues
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        env: 
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           DRY_RUN: ${{ env.DRY_RUN }}
+          CUSTOM_PAYLOAD: ${{ github. event.inputs.payload }}
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
         with:
           script: |
-            const script = require('./.github/scripts/p0_notify_team.js')
-            await script({ github, context });
+            const script = require('./. github/scripts/p0_notify_team.js');
+            
+            // Parse custom payload if provided (for manual testing)
+            let customPayload = null;
+            if (process.env.CUSTOM_PAYLOAD && process.env.CUSTOM_PAYLOAD.trim() !== '') {
+              try {
+                customPayload = JSON.parse(process.env.CUSTOM_PAYLOAD);
+                console.log('Using custom payload for testing:', JSON.stringify(customPayload, null, 2));
+              } catch (e) {
+                console. error('Failed to parse custom payload:', e.message);
+                core.setFailed('Invalid JSON in payload input');
+                return;
+              }
+            }
+            
+            await script({ github, context, customPayload });
