@@ -52,7 +52,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
         with:
           script: |
-            const script = require('./. github/scripts/p0_notify_team.js');
+            const script = require('./.github/scripts/p0_notify_team.js');
             
             // Parse custom payload if provided (for manual testing)
             let customPayload = null;
