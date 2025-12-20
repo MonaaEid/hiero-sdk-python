@@ -1,7 +1,7 @@
 // A script to  closes pull requests without a linked issue after 3 days automatically.
 
 // dryRun env var: any case-insensitive 'true' value will enable dry-run
-const dryRun = (process.env.dryRun || 'false').toString().toLowerCase() === 'true';
+const dryRun = (process.env.DRY_RUN || 'false').toString().toLowerCase() === 'true';
 const daysBeforeClose = parseInt(process.env.DAYS_BEFORE_CLOSE || '3', 10);
 const requireAuthorAssigned = (process.env.REQUIRE_AUTHOR_ASSIGNED || 'true').toLowerCase() === 'true';
 
