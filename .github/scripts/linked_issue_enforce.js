@@ -15,9 +15,14 @@ const isAuthorAssigned = (issue, login) => {
   return assignees.includes(login);
 };
 
+const baseMessage = `Hi there! I'm the LinkedIssueBot.\nThis pull request has been automatically closed after 3 days due to the following reason(s):
+`;
+const messageSuffix = `Please read - [Creating Issues](../docs/sdk_developers/creating_issues.md) - [How To Link Issues](../docs/sdk_developers/how_to_link_issues.md)\nThank you
+From Python SDK team`
+
 const messages = {
-  no_issue: `Closing this PR because it has no valid linked issue after ${daysBeforeClose} days.`,
-  not_assigned: `Closing this PR because you are not assigned to the linked issue. `
+  no_issue: `${baseMessage} - Reason: This pull request is not linked to any issue. Please link it to an issue and reopen the pull request if this is an error.\n${messageSuffix}`,
+  not_assigned: `${baseMessage} - Reason: You are not assigned to the linked issue. Please ensure you are assigned before reopening the pull request.\n${messageSuffix}`
 };
 
 // Fetch linked issues using GraphQL
@@ -73,7 +78,7 @@ async function validatePR(github, pr, owner, repo) {
 async function closePR(github, pr, owner, repo, reason) {
   if (dryRun) {
     console.log(`[DRY RUN] Would close PR #${pr.number} (${reason})`);
-    return;
+    return true;
   }
 
   try {
@@ -91,7 +96,8 @@ async function closePR(github, pr, owner, repo, reason) {
 }
 
 module.exports = async ({ github, context }) => {
-  const { owner, repo } = context.repo;
+  try {
+    const { owner, repo } = context.repo;
   const prs = await github.paginate(github.rest.pulls.list, {
     owner, repo, state: 'open', per_page: 100
   });
@@ -109,4 +115,8 @@ module.exports = async ({ github, context }) => {
       await closePR(github, pr, owner, repo, reason);
     }
   }
+  } catch (err) {
+    console.error('Unexpected error:', err.message);
+  }
+
 };
