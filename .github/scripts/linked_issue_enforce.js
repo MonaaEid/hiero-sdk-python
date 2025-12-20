@@ -72,12 +72,13 @@ async function validatePR(github, pr, owner, repo) {
     if (!assigned) return { valid: false, reason: 'not_assigned' };
   }
 
+  console.log(`PR #${pr.number} has valid linked issue(s)`);
   return { valid: true };
 }
 
 async function closePR(github, pr, owner, repo, reason) {
   if (dryRun) {
-    console.log(`[DRY RUN] Would close PR #${pr.number} (${reason})`);
+    console.log(`[DRY RUN] Would close PR #${pr.number} ${pr.html_url} (${reason})`);
     return true;
   }
 
