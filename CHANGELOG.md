@@ -9,6 +9,8 @@ This changelog is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.
 
 
 ### Added
+- Added `__repr__` method to `Timestamp` class for improved debugging experience
+- Added comprehensive unit tests for `Timestamp` class covering all methods and edge cases
 - examples/mypy.ini for stricter type checking in example scripts
 - Added a GitHub Actions workflow that reminds contributors to link pull requests to issues.
 - Added `__str__` and `__repr__` methods to `AccountInfo` class for improved logging and debugging experience (#1098)
