@@ -9,6 +9,7 @@ This changelog is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.
 
 
 ### Added
+- Added unit tests for advanced issue template validation (`tests/unit/issue_template_test.py`)
 - examples/mypy.ini for stricter type checking in example scripts
 - Added a GitHub Actions workflow that reminds contributors to link pull requests to issues.
 - Added `__str__` and `__repr__` methods to `AccountInfo` class for improved logging and debugging experience (#1098)
