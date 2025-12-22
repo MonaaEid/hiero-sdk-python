@@ -97,7 +97,7 @@ class Timestamp:
         """Convert the `Timestamp` to corresponding protobuf object.
 
         Returns:
-            dict: A protobuf representation of the `Timestamp`.
+            TimestampProto: A protobuf representation of the `Timestamp`.
 
         """
         return TimestampProto(seconds=self.seconds, nanos=self.nanos)
