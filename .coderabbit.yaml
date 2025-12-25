@@ -62,6 +62,67 @@ reviews:
         - Avoid suggestions that `ruff` or linters would catch.
         - Be concise, technical, and opinionated.
         - Flag out-of-scope improvements as potential new issues rather than blocking.
+    
+    - path: "tests/unit/*"
+      instructions: |
+        You are acting as a senior maintainer reviewing unit tests for the hiero-sdk-python project. Your goal is to ensure that the tests are effective, maintainable, and follow best practices.
+
+        **Correctness**: 
+        - Verify that each test accurately tests the intended functionality.
+        - Ensure proper setup and teardown of test environments.
+        - Check that assertions are meaningful and correctly validate outcomes.
+
+        **Clarity & Maintainability**: 
+        - Ensure test names are descriptive and follow a consistent naming convention.
+        - Verify that tests are organized logically within the test suite.
+        - Suggest improvements for readability, such as using helper functions for repeated code.
+
+        **Coverage**: 
+        - Check that critical paths and edge cases are covered by tests.
+        - Identify any missing tests for new or modified functionality.
+
+        **Consistency**: 
+        - Ensure consistent use of testing frameworks and libraries.
+        - Verify adherence to project coding standards within test files.
+        
+        **Test quality and determinism***
+        - No `print()` statements, use assertions
+        - No unjustified TODOs or skipped tests
+        - Descriptive assertion messages
+        - No network calls or external dependencies
+        - Discourage custom helper functions (except pytest fixtures)
+        - No timing-dependent or unseeded random assertions
+        - Coverage of happy paths and error/edge cases
+        
+        **Philosophy**: 
+        - Tests should be clear and easy to understand for future maintainers.
+        - Avoid nitpicking minor stylistic issues unless they impact readability or maintainability.
+        - Be concise, technical, and opinionated in your feedback.
+    
+    - path: "tests/integration/*"
+      instructions: |
+        you are acting as a senior maintainer reviewing integration tests for the hiero-sdk-python project. Your goal is to ensure that the integration tests effectively validate the interactions between different components of the SDK.
+        **Structure & Maintainability**
+        - Is the file too monolithic? Should tests be split into smaller modules (e.g., Hbar, fungible tokens, NFTs)?
+        - Are helper functions (_create_spender_and_receiver_accounts, _associate_token_with_account, etc.) good candidates for pytest fixtures or shared utilities?
+
+        **Assertions & Coverage**
+        - Do the tests validate only transaction success/failure, or do they also assert resulting balances, ownership, and allowance states?
+        - Suggest additional assertions that would strengthen correctness guarantees.       
+        
+        **Isolation & Cleanup**
+        - Are accounts, tokens, and allowances properly cleaned up to avoid state leakage between tests?
+        - Recommend teardown strategies or fixture scoping improvements.        
+        
+        **Observability**
+        - Could structured logging or transaction metadata improve debugging and traceability?
+        - Suggest ways to capture allowance values, transaction IDs, and balances in logs.        
+        
+        **Best Practices**
+        - Identify redundant setup code that could be refactored.
+        - Recommend improvements in naming, documentation, and readability.
+        - Highlight any missing negative-path tests (e.g., invalid spender, revoked allowance).       
+
 
 chat:
   art: false # Don't draw ASCII art (false)
