@@ -449,7 +449,7 @@ def test_integration_transfer_transaction_approved_token_transfer():
     finally:
         env.close()
 
-@pytest.mark.integration
+
 def test_integration_transfer_transaction_approved_nft_transfer():
     """Test NFT transfer with approval flag set to True."""
     try:
@@ -502,11 +502,15 @@ def test_integration_transfer_transaction_approved_nft_transfer():
         ), f"NFT association failed with status: {ResponseCode(receipt.status).name}"
         
         allowance_tx = AccountAllowanceApproveTransaction() \
-        .approve_token_allowance(nft_id, env.operator_id, account_id ) \
+        .approve_token_nft_allowance(nft_id, env.operator_id, account_id) \
         .freeze_with(env.client) \
         .sign(env.operator_key)
 
-        allowance_tx.execute(env.client)
+        allowance_receipt = allowance_tx.execute(env.client)
+
+        assert (
+            allowance_receipt.status == ResponseCode.SUCCESS
+        ), f"NFT allowance approval failed with status: {ResponseCode(allowance_receipt.status).name}"
 
         transfer_tx = TransferTransaction().add_approved_nft_transfer(nft_id, env.operator_id, account_id) \
         .freeze_with(env.client).sign(new_account_private_key)
@@ -520,6 +524,10 @@ def test_integration_transfer_transaction_approved_nft_transfer():
         query_transaction = CryptoGetAccountBalanceQuery(account_id)
         balance = query_transaction.execute(env.client)
 
-        assert balance and balance.token_balances == {token_id: serial_number}
+        assert balance is not None, "Account balance query returned None"
+        assert balance.token_balances == {token_id: serial_number}, (
+            f"Expected NFT balance: {{token_id: serial_number}}, "
+            f"actual: {balance.token_balances}"
+        )
     finally:
         env.close()
