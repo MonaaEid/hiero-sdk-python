@@ -502,7 +502,7 @@ def test_integration_transfer_transaction_approved_nft_transfer():
         ), f"NFT association failed with status: {ResponseCode(receipt.status).name}"
         
         allowance_tx = AccountAllowanceApproveTransaction() \
-        .approve_nft_allowance(env.operator_id, account_id, nft_id) \
+        .approve_token_allowance(nft_id, env.operator_id, account_id ) \
         .freeze_with(env.client) \
         .sign(env.operator_key)
 
