@@ -64,7 +64,7 @@ reviews:
         - Flag out-of-scope improvements as potential new issues rather than blocking.
     
     # --- UNIT TESTS REVIEW INSTRUCTIONS ---
-    - path:  "tests/unit/**/*"
+    - path: "tests/unit/**/*"
       instructions: |
         You are acting as a senior maintainer reviewing unit tests for the hiero-sdk-python project.  Your goal is to ensure tests are extensive, deterministic, and protect against breaking changes.
 

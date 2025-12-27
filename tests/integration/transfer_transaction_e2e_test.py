@@ -449,69 +449,69 @@ def test_integration_transfer_transaction_approved_token_transfer():
     finally:
         env.close()
 
-        @pytest.mark.integration
+@pytest.mark.integration
 def test_integration_transfer_transaction_approved_nft_transfer():
     """Test NFT transfer with approval flag set to True."""
     env = IntegrationTestEnv()
 
-    try:
-        new_account_private_key = PrivateKey.generate()
-        new_account_public_key = new_account_private_key.public_key()
 
-        initial_balance = Hbar(10)
+    new_account_private_key = PrivateKey.generate()
+    new_account_public_key = new_account_private_key.public_key()
 
-        account_transaction = AccountCreateTransaction(
-            key=new_account_public_key, initial_balance=initial_balance, memo="Recipient Account"
-        )
+    initial_balance = Hbar(10)
 
-        receipt = account_transaction.execute(env.client)
+    account_transaction = AccountCreateTransaction(
+        key=new_account_public_key, initial_balance=initial_balance, memo="Recipient Account"
+    )
 
-        assert (
-            receipt.status == ResponseCode.SUCCESS
-        ), f"Account creation failed with status: {ResponseCode(receipt.status).name}"
+    receipt = account_transaction.execute(env.client)
 
-        account_id = receipt.account_id
-        assert account_id is not None
+    assert (
+        receipt.status == ResponseCode.SUCCESS
+    ), f"Account creation failed with status: {ResponseCode(receipt.status).name}"
 
-        token_id = create_nft_token(env)
-        assert token_id is not None
+    account_id = receipt.account_id
+    assert account_id is not None
 
-        mint_transaction = TokenMintTransaction(token_id=token_id, metadata=[b"test"])
+    token_id = create_nft_token(env)
+    assert token_id is not None
 
-        receipt = mint_transaction.execute(env.client)
+    mint_transaction = TokenMintTransaction(token_id=token_id, metadata=[b"test"])
 
-        assert (
-            receipt.status == ResponseCode.SUCCESS
-        ), f"NFT mint failed with status: {ResponseCode(receipt.status).name}"
+    receipt = mint_transaction.execute(env.client)
 
-        serial_number = receipt.serial_numbers[0]
+    assert (
+        receipt.status == ResponseCode.SUCCESS
+    ), f"NFT mint failed with status: {ResponseCode(receipt.status).name}"
 
-        nft_id = NftId(token_id, serial_number)
+    serial_number = receipt.serial_numbers[0]
 
-        associate_transaction = TokenAssociateTransaction(
-            account_id=account_id, token_ids=[token_id]
-        )
+    nft_id = NftId(token_id, serial_number)
 
-        associate_transaction.freeze_with(env.client)
-        associate_transaction.sign(new_account_private_key)
-        receipt = associate_transaction.execute(env.client)
+    associate_transaction = TokenAssociateTransaction(
+        account_id=account_id, token_ids=[token_id]
+    )
 
-        assert (
-            receipt.status == ResponseCode.SUCCESS
-        ), f"NFT association failed with status: {ResponseCode(receipt.status).name}"
+    associate_transaction.freeze_with(env.client)
+    associate_transaction.sign(new_account_private_key)
+    receipt = associate_transaction.execute(env.client)
 
-        transfer_transaction = TransferTransaction()
-        transfer_transaction.add_approved_nft_transfer(nft_id, env.operator_id, account_id)
+    assert (
+        receipt.status == ResponseCode.SUCCESS
+    ), f"NFT association failed with status: {ResponseCode(receipt.status).name}"
 
-        receipt = transfer_transaction.execute(env.client)
+    transfer_transaction = TransferTransaction()
+    transfer_transaction.add_approved_nft_transfer(nft_id, account_id, 500) \
+    .add_approved_nft_transfer(nft_id, env.operator_id, -500) \
+    .freeze_with(env.client).sign(env.operator_key)
 
-        assert (
-            receipt.status == ResponseCode.SUCCESS
-        ), f"NFT transfer failed with status: {ResponseCode(receipt.status).name}"
+    receipt = transfer_transaction.execute(env.client)
 
-        query_transaction = CryptoGetAccountBalanceQuery(account_id)
-        balance = query_transaction.execute(env.client)
+    assert (
+        receipt.status == ResponseCode.SUCCESS
+    ), f"NFT transfer failed with status: {ResponseCode(receipt.status).name}"
 
-        assert balance and balance.token_balances == {token_id: serial_number}
-    finally:
-        env.close()
+    query_transaction = CryptoGetAccountBalanceQuery(account_id)
+    balance = query_transaction.execute(env.client)
+
+    assert balance and balance.token_balances == {token_id: serial_number}
