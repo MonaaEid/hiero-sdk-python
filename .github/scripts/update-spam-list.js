@@ -11,6 +11,7 @@ const fs = require('fs').promises;
 const path = require('path');
 
 const SPAM_LIST_PATH = '.github/spam-list.txt';
+const CHANGELOG_PATH = 'CHANGELOG.md';
 const dryRun = (process.env.DRY_RUN || 'false').toString().toLowerCase() === 'true';
 
 // Load current spam list and compute updates based on spam vs rehabilitated users
@@ -87,6 +88,32 @@ async function updateSpamListFile(usernames) {
   await fs.mkdir(dir, { recursive: true });
   
   await fs.writeFile(SPAM_LIST_PATH, content, 'utf8');
+
+  // update CHANGELOG.md
+const changelogEntry = `\n- Updated spam list with ${usernames.length} entries on ${new Date().toISOString().split('T')[0]}\n`;
+let changelogContent = '';
+try {
+  changelogContent = await fs.readFile(CHANGELOG_PATH, 'utf8');
+} catch (error) {
+  if (error.code !== 'ENOENT') {
+    throw error;
+  }
+  // File doesn't exist yet, start with empty content
+}
+const marker = '### Fixed';
+if (changelogContent.includes(marker)) {
+  // Insert entry before the marker
+  changelogContent = changelogContent.replace(
+    marker,
+    `${changelogEntry}\n${marker}`
+  );
+} else {
+  // If no marker found, just append at the end
+  changelogContent += changelogEntry;
+}
+
+await fs.writeFile(CHANGELOG_PATH, changelogContent, 'utf8');
+
 }
 
 // Generate PR title and body with summary of changes
