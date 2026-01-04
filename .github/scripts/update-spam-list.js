@@ -140,13 +140,13 @@ module.exports = async ({github, context, core}) => {
     const searches = [
       {
         name: 'spam PRs',
-        query: `repo:${owner}/${repo} is:pr is:closed is: unmerged label:spam`,
+        query: `repo:${owner}/${repo} is:pr is:closed -is:merged label:spam`,
         process: async (pr) => {
           const username = pr.user.login;
           const closedDate = new Date(pr.closed_at);
 
-          if (!spamUsers. has(username) || closedDate > spamUsers.get(username)) {
-            spamUsers. set(username, closedDate);
+          if (!spamUsers.has(username) || closedDate > spamUsers.get(username)) {
+            spamUsers.set(username, closedDate);
           }
         }
       },
