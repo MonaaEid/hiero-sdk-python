@@ -42,8 +42,8 @@ jobs:
             // Set outputs for conditional PR creation
             core.setOutput('has-changes', result.changesDetected ? 'true' : 'false');
             core.setOutput('pr-title', result.title);
-            core.setOutput('pr-body', result.body);
             core.setOutput('branch-name', result.branchName);
+            core.setOutput('pr-body', `<<EOF ${result.body} EOF`);
             core.info(`Debug result: ${JSON.stringify(result, null, 2)}`);
             return result;
       
@@ -52,18 +52,19 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git checkout -b "${{ steps.update-spam-list.outputs.branchName }}"
+          git fetch origin
+          git checkout "${{ steps.update-spam-list.outputs.branch-name }}" || git checkout -b "${{ steps.update-spam-list.outputs.branch-name }}"
           git add .github/spam-list.txt
-          git commit -m "${{ steps.update-spam-list.outputs.title }}"
-          git push origin "${{ steps.update-spam-list.outputs.branchName }}"
+          git commit -m "${{ steps.update-spam-list.outputs.pr-title }}"
+          git push origin "${{ steps.update-spam-list.outputs.branch-name }}"
 
       - name: Create PR with gh
         if: ${{ steps.update-spam-list.outputs.has-changes == 'true' && env.DRY_RUN != 'true' }}
         run: |
           gh pr create \
-            --title "${{ steps.update-spam-list.outputs.title }}" \
-            --body "${{ steps.update-spam-list.outputs.body }}" \
+            --title "${{ steps.update-spam-list.outputs.pr-title  }}" \
+            --body "${{ steps.update-spam-list.outputs.pr-body }}" \
             --label "automated" \
             --label "spam-management" \
             --base main \
-            --head "${{ steps.update-spam-list.outputs.branchName }}"
+            --head "${{ steps.update-spam-list.outputs.branch-name }}"
