@@ -43,7 +43,7 @@ jobs:
             core.setOutput('has-changes', result.hasChanges ? 'true' : 'false');
             core.setOutput('pr-title', result.title);
             core.setOutput('branch-name', result.branchName);
-            core.setOutput('pr-body', `<<EOF ${result.body} EOF`);
+            core.setOutput('pr-body', result.body);
             core.info(`Debug result: ${JSON.stringify(result, null, 2)}`);
             return result;
       
@@ -54,7 +54,7 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git fetch origin
           git checkout -b "${{ steps.update-spam-list.outputs.branch-name }}"
-          git add .github/spam-list.txt
+          git add .github/spam-list.txt CHANGELOG.md
           git commit -m "${{ steps.update-spam-list.outputs.pr-title }}"
           git pull --rebase origin "${{ steps.update-spam-list.outputs.branch-name }}" || true
           git push origin "${{ steps.update-spam-list.outputs.branch-name }}" --force-with-lease
