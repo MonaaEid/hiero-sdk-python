@@ -44,7 +44,7 @@ jobs:
             core.setOutput('pr-title', result.title);
             core.setOutput('pr-body', result.body);
             core.setOutput('branch-name', result.branchName);
-            
+            core.info(`Debug result: ${JSON.stringify(result, null, 2)}`);
             return result;
       
       - name: Commit and push changes
