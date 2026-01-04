@@ -40,7 +40,7 @@ jobs:
             const result = await updateSpamList({ github, context, core });
             
             // Set outputs for conditional PR creation
-            core.setOutput('has-changes', result.changesDetected ? 'true' : 'false');
+            core.setOutput('has-changes', result.hasChanges ? 'true' : 'false');
             core.setOutput('pr-title', result.title);
             core.setOutput('branch-name', result.branchName);
             core.setOutput('pr-body', `<<EOF ${result.body} EOF`);
