@@ -53,10 +53,9 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git fetch origin
-          git checkout "${{ steps.update-spam-list.outputs.branch-name }}" || git checkout -b "${{ steps.update-spam-list.outputs.branch-name }}"
+          git checkout -b "${{ steps.update-spam-list.outputs.branch-name }}"
           git add .github/spam-list.txt
           git commit -m "${{ steps.update-spam-list.outputs.pr-title }}"
-          git pull --rebase origin "${{ steps.update-spam-list.outputs.branch-name }}"
           git push origin "${{ steps.update-spam-list.outputs.branch-name }}"
 
       - name: Create PR with gh
