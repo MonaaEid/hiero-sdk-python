@@ -56,8 +56,9 @@ jobs:
           git checkout -b "${{ steps.update-spam-list.outputs.branch-name }}"
           git add .github/spam-list.txt
           git commit -m "${{ steps.update-spam-list.outputs.pr-title }}"
-          git pull origin "${{ steps.update-spam-list.outputs.branch-name }}"
-          git push origin "${{ steps.update-spam-list.outputs.branch-name }}"
+          git pull --rebase origin "${{ steps.update-spam-list.outputs.branch-name }}" || true
+          git push origin "${{ steps.update-spam-list.outputs.branch-name }}" --force-with-lease
+
 
       - name: Create PR with gh
         if: ${{ steps.update-spam-list.outputs.has-changes == 'true' && env.DRY_RUN != 'true' }}
