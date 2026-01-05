@@ -100,12 +100,13 @@ try {
   }
   // File doesn't exist yet, start with empty content
 }
-const marker = '### Fixed';
+const marker = '\n### Fixed';
 if (changelogContent.includes(marker)) {
   // Insert entry before the marker
   changelogContent = changelogContent.replace(
     marker,
-    `${changelogEntry}${marker.startsWith('\n') ? '' : '\n'}${marker}` );
+    `${changelogEntry}\n${marker}`
+  );
 } else {
   // If no marker found, just append at the end
   changelogContent += changelogEntry;
