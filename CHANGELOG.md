@@ -136,6 +136,8 @@ This changelog is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.
 - Enhance NodeAddress tests with additional coverage for proto conversion `tests/unit/node_address_test.py`
 - Updated spam list with 1 entries on 2026-01-05
 
+- Updated spam list with 2 entries on 2026-01-05
+
 
 ### Fixed
 - GFI workflow casing 
