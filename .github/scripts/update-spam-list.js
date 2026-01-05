@@ -90,7 +90,7 @@ async function updateSpamListFile(usernames) {
   await fs.writeFile(SPAM_LIST_PATH, content, 'utf8');
 
   // update CHANGELOG.md
-const changelogEntry = `\n- Updated spam list with ${usernames.length} entries on ${new Date().toISOString().split('T')[0]}\n`;
+const changelogEntry = `- Updated spam list with ${usernames.length} entries on ${new Date().toISOString().split('T')[0]}\n`;
 let changelogContent = '';
 try {
   changelogContent = await fs.readFile(CHANGELOG_PATH, 'utf8');
@@ -223,7 +223,7 @@ module.exports = async ({github, context, core}) => {
         }
       }
     }
-    
+    // delete it
     console.log(`📊 Found ${spamUsers. size} spam users, ${rehabilitatedUsers.size} rehabilitated users`);
     
     // ... rest remains the same
