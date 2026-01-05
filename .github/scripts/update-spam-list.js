@@ -105,8 +105,7 @@ if (changelogContent.includes(marker)) {
   // Insert entry before the marker
   changelogContent = changelogContent.replace(
     marker,
-    `${changelogEntry}\n${marker}`
-  );
+    `${changelogEntry}${marker.startsWith('\n') ? '' : '\n'}${marker}` );
 } else {
   // If no marker found, just append at the end
   changelogContent += changelogEntry;
