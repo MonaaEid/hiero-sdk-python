@@ -246,7 +246,6 @@ module.exports = async ({github, context, core}) => {
       ? `spam-list-update-${new Date().toISOString().split('T')[0]}`
       : '';
     
-    console.log(`${title}\n\n${body}`);
     core.setOutput('has-changes', hasChanges.toString());
     core.setOutput('pr-title', title);
     core.setOutput('pr-body', body);
