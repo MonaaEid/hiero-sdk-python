@@ -135,6 +135,9 @@ This changelog is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.
 - Add CodeRabbit documentation review prompts for docs, sdk_users, and sdk_developers with priorities, philosophy, and edge case checks. ([#1236](https://github.com/hiero-ledger/hiero-sdk-python/issues/1236))
 - Enhance NodeAddress tests with additional coverage for proto conversion `tests/unit/node_address_test.py`
 
+
+- Updated spam list with 1 entries on 2026-01-05
+
 ### Fixed
 - GFI workflow casing 
 - Update `bot-workflows.yml` to trigger only on open PRs with failed workflows; ignore closed PRs and branches without open PRs.
