@@ -46,7 +46,7 @@ jobs:
             return result;
       
       - name: Create pull request
-        if: ${{ steps.parse.outputs.has-changes == 'true' && env.DRY_RUN != 'true' }}
+        if: ${{ steps.update-spam-list.outputs.has-changes == 'true' && env.DRY_RUN != 'true' }}
         uses: peter-evans/create-pull-request@98357b18bf14b5342f975ff684046ec3b2a07725
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
