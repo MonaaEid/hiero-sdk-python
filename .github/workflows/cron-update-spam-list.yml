@@ -36,14 +36,7 @@ jobs:
         with:
           script: |
             const updateSpamList = require('./.github/scripts/update-spam-list.js');
-            const result = await updateSpamList({ github, context, core });
-            
-            // Set outputs for conditional PR creation
-            core.setOutput('has-changes', result.hasChanges ? 'true' : 'false');
-            core.setOutput('pr-title', result.title);
-            core.setOutput('branch-name', result.branchName);
-            core.setOutput('pr-body', result.body);
-            return result;
+            await updateSpamList({ github, context, core });
       
       - name: Create pull request
         if: ${{ steps.update-spam-list.outputs.has-changes == 'true' && env.DRY_RUN != 'true' }}
