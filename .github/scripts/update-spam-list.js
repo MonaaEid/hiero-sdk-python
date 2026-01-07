@@ -11,7 +11,6 @@ const fs = require('fs').promises;
 const path = require('path');
 
 const SPAM_LIST_PATH = '.github/spam-list.txt';
-const CHANGELOG_PATH = 'CHANGELOG.md';
 const dryRun = (process.env.DRY_RUN || 'false').toString().toLowerCase() === 'true';
 
 // Load current spam list and compute updates based on spam vs rehabilitated users
@@ -128,7 +127,7 @@ function generateSummary(additions, removals) {
 // Main function to orchestrate the spam list update
  
 module.exports = async ({github, context, core}) => {
-  const { owner, repo } = context. repo;
+  const { owner, repo } = context.repo;
   try {
     console.log('Starting spam list update...');
     
@@ -144,6 +143,10 @@ module.exports = async ({github, context, core}) => {
         name: 'spam PRs',
         query: `repo:${owner}/${repo} is:pr is:closed -is:merged label:spam`,
         process: async (pr) => {
+          if (!pr.user?.login) {
+            console.log(`Skipping PR #${pr.number}: user account unavailable`);
+            return;
+          }
           const username = pr.user.login;
           const closedDate = new Date(pr.closed_at);
 
@@ -156,6 +159,10 @@ module.exports = async ({github, context, core}) => {
         name:  'rehabilitated PRs',
         query: `repo:${owner}/${repo} is:pr is:merged label:"Good First Issue"`,
         process: async (pr) => {
+         if (!pr.user?.login) {
+            console.log(`Skipping PR #${pr.number}: user account unavailable`);
+            return;
+          }
           const username = pr.user.login;
 
           // Get the actual PR to find merge date
@@ -198,9 +205,7 @@ module.exports = async ({github, context, core}) => {
         }
       }
     }
-    // delete it
-    console.log(`📊 Found ${spamUsers. size} spam users, ${rehabilitatedUsers.size} rehabilitated users`);
-    
+
     // ... rest remains the same
     const { additions, removals, finalSpamList } = await computeSpamListUpdates(
       spamUsers,
