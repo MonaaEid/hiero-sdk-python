@@ -140,7 +140,7 @@ class TopicInfo:
         """
         exp_dt = None
         if self.expiration_time and hasattr(self.expiration_time, "seconds"):
-            exp_dt = datetime.fromtimestamp(self. expiration_time.seconds)
+            exp_dt = datetime.fromtimestamp(self.expiration_time.seconds)
 
         running_hash_str = f"0x{self.running_hash.hex()}" if self.running_hash else "None"
 
@@ -155,10 +155,10 @@ class TopicInfo:
 
         if self.auto_renew_account is None:
             auto_renew_account_str = "None"
-        elif hasattr(self. auto_renew_account, "shardNum"):
+        elif hasattr(self.auto_renew_account, "shardNum"):
             auto_renew_account_str = (
                 f"AccountId(shard={self.auto_renew_account.shardNum}, "
-                f"realm={self. auto_renew_account.realmNum}, "
+                f"realm={self.auto_renew_account.realmNum}, "
                 f"account={self.auto_renew_account.accountNum})"
             )
         else:
@@ -172,7 +172,7 @@ class TopicInfo:
             f"  running_hash={running_hash_str},\n"
             f"  sequence_number={self.sequence_number},\n"
             f"  expiration_time={exp_dt},\n"
-            f"  admin_key={format_key(self. admin_key)},\n"
+            f"  admin_key={format_key(self.admin_key)},\n"
             f"  submit_key={format_key(self.submit_key)},\n"
             f"  auto_renew_period={auto_renew_seconds},\n"
             f"  auto_renew_account={auto_renew_account_str},\n"

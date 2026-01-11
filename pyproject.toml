@@ -100,3 +100,7 @@ indent-style = "space"
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
+
+# TCK dependencies are only needed for running the test server, not for SDK usage
+[dependency-groups.tck] 
+tck = ["fastapi>=0.128.0"]
