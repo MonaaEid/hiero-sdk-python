@@ -48,6 +48,12 @@ lint = [
     "typing-extensions>=4.15.0",
 ]
 
+# TCK dependencies are only needed for running the test server, not for SDK usage
+tck = [
+    "fastapi>=0.128.0",
+    "uvicorn>=0.32.0",
+]
+
 [tool.uv]
 default-groups = ["dev", "lint"]
 
@@ -101,6 +107,3 @@ indent-style = "space"
 [tool.ruff.lint.pydocstyle]
 convention = "google"
 
-# TCK dependencies are only needed for running the test server, not for SDK usage
-[dependency-groups.tck] 
-tck = ["fastapi>=0.128.0"]
