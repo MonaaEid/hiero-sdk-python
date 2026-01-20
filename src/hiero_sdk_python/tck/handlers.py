@@ -1,12 +1,12 @@
 """Build a flexible registry-based method routing system that can dispatch 
 requests to handlers and transform exceptions into JSON-RPC errors."""
 from typing import Any, Dict, Optional, Union
-import json
 from hiero_sdk_python.tck.errors import INTERNAL_ERROR, INVALID_PARAMS, METHOD_NOT_FOUND, HIERO_ERROR, INVALID_REQUEST
 from hiero_sdk_python.tck.protocol import build_json_rpc_error_response, JsonRpcError
 from hiero_sdk_python.exceptions import PrecheckError, ReceiptStatusError, MaxAttemptsError
 from hiero_sdk_python.tck.client_manager import store_client,remove_client
 from hiero_sdk_python import Client, AccountId, PrivateKey, Network
+from hiero_sdk_python.node import _Node
 
 # A global _HANDLERS dict to store method name -> handler function mappings
 _HANDLERS: Dict[str, Any] = {}
@@ -41,6 +41,8 @@ def safe_dispatch(method_name: str,
     """Safely dispatch the request and handle exceptions."""
     try:
         return dispatch(method_name, params, session_id)
+    except JsonRpcError as e:
+        return build_json_rpc_error_response(e, None)
     except (PrecheckError, ReceiptStatusError, MaxAttemptsError) as e:
         error = JsonRpcError(HIERO_ERROR, 'Hiero error', str(e))
         return build_json_rpc_error_response(error, None)
@@ -85,7 +87,16 @@ def setup_handler(params: Dict[str, Any], session_id: str) -> Dict[str, Any]:
             nodes = network_param['nodes']
             if not isinstance(nodes, list) or not all(isinstance(node, str) for node in nodes):
                 raise JsonRpcError(INVALID_PARAMS, 'Invalid params: nodes must be a list of strings')
-            network = Network(nodes=nodes)
+            
+            # Convert string nodes to _Node objects with generated AccountIds
+            # Starting from AccountId 0.0.3 (common convention for network nodes)
+            node_objects = []
+            for idx, node_address in enumerate(nodes):
+                account_id = AccountId(0, 0, 3 + idx)
+                node_obj = _Node(account_id, node_address, None)
+                node_objects.append(node_obj)
+            
+            network = Network(nodes=node_objects)
             client = Client(network)
         else:
             raise JsonRpcError(INVALID_PARAMS, 'Invalid params: unknown network specification')
@@ -98,9 +109,9 @@ def setup_handler(params: Dict[str, Any], session_id: str) -> Dict[str, Any]:
     return {"status": "success"}
 
 @register_handler("reset")
-def reset_handler(params: Dict[str, Any]) -> Dict[str, Any]:
+def reset_handler(params: Dict[str, Any], session_id: Optional[str] = None) -> Dict[str, Any]:
     """Reset handler to close connections and clear client state."""
-    session_id = params.get('sessionId')
-    if session_id is not None:
-        remove_client(session_id)
+    target_session_id = params.get('sessionId') or session_id
+    if target_session_id is not None:
+        remove_client(target_session_id)
     return {"status": "reset completed"}

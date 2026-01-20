@@ -1,11 +1,12 @@
-from multiprocessing.connection import Client
+from hiero_sdk_python import Client
 from typing import Optional, Dict
 
-_clients: Dict[str, 'Client'] = {}
+_clients: Dict[str, Client] = {}
 
 def store_client(session_id: str, client: 'Client') -> None:
     """Store a client instance associated with a session ID."""
     _clients[session_id] = client
+
 def get_client(session_id: str) -> Optional['Client']:
     """Retrieve a client instance by session ID."""
     return _clients.get(session_id)

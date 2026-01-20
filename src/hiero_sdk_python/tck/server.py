@@ -13,12 +13,13 @@ async def json_rpc_endpoint(request: Dict[str, Any]) -> Dict[str, Any]:
     """JSON-RPC 2.0 endpoint to handle requests."""
     # Parse and validate the JSON-RPC request
     parsed_request = parse_json_rpc_request(json.dumps(request))
+    request_id = parsed_request['id']
+
     if isinstance(parsed_request, JsonRpcError):
-        return build_json_rpc_error_response(parsed_request, request.get('id'))
+        return build_json_rpc_error_response(parsed_request, request_id)
 
     method_name = parsed_request['method']
     params = parsed_request['params']
-    request_id = parsed_request['id']
     session_id = parsed_request.get('sessionId')
 
     # Safely dispatch the request to the appropriate handler
