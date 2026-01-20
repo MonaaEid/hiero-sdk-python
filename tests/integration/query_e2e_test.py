@@ -6,9 +6,10 @@ from hiero_sdk_python.crypto.private_key import PrivateKey
 from hiero_sdk_python.exceptions import PrecheckError
 from hiero_sdk_python.hbar import Hbar
 from hiero_sdk_python.query.account_balance_query import CryptoGetAccountBalanceQuery
+from hiero_sdk_python.query.account_info_query import AccountInfoQuery
 from hiero_sdk_python.query.token_info_query import TokenInfoQuery
 from hiero_sdk_python.response_code import ResponseCode
-from tests.integration.utils import IntegrationTestEnv, create_fungible_token
+from tests.integration.utils import IntegrationTestEnv, env, create_fungible_token
 
 @pytest.mark.integration
 def test_integration_free_query_no_cost():
@@ -22,7 +23,7 @@ def test_integration_free_query_no_cost():
         initial_balance = Hbar(1)
         receipt = (
             AccountCreateTransaction()
-            .set_key(new_account_public_key)
+            .set_key_without_alias(new_account_public_key)
             .set_initial_balance(initial_balance)
             .execute(env.client)
         )
@@ -72,7 +73,7 @@ def test_integration_free_query_with_manual_payment():
         initial_balance = Hbar(1)
         receipt = (
             AccountCreateTransaction()
-            .set_key(new_account_public_key)
+            .set_key_without_alias(new_account_public_key)
             .set_initial_balance(initial_balance)
             .execute(env.client)
         )
@@ -129,7 +130,7 @@ def test_integration_paid_query_network_cost():
         
         receipt = (
             AccountCreateTransaction()
-            .set_key(new_account_public_key)
+            .set_key_without_alias(new_account_public_key)
             .set_initial_balance(Hbar(1))
             .execute(env.client)
         )
@@ -168,7 +169,7 @@ def test_integration_paid_query_manual_payment():
         
         receipt = (
             AccountCreateTransaction()
-            .set_key(new_account_public_key)
+            .set_key_without_alias(new_account_public_key)
             .set_initial_balance(Hbar(1))
             .execute(env.client)
         )
@@ -214,7 +215,7 @@ def test_integration_paid_query_payment_too_high_fails():
         
         receipt = (
             AccountCreateTransaction()
-            .set_key(new_account_public_key)
+            .set_key_without_alias(new_account_public_key)
             .set_initial_balance(Hbar(1))
             .execute(env.client)
         )
@@ -237,3 +238,23 @@ def test_integration_paid_query_payment_too_high_fails():
             query.execute(env.client)
     finally:
         env.close()
+
+@pytest.mark.integration
+def test_integration_query_exceeds_max_payment(env):
+    """Test that Query fails when cost exceeds max_query_payment."""
+    receipt = env.create_account(1)
+    account_id = receipt.id
+    
+    # Set max payment below actual cost
+    query = (
+        AccountInfoQuery()
+        .set_account_id(account_id)
+        .set_max_query_payment(Hbar.from_tinybars(1))  # Intentionally too low to fail
+    )
+    
+    with pytest.raises(ValueError) as e:
+        query.execute(env.client)
+
+    msg = str(e.value)
+    assert "Query cost" in msg and "exceeds max set query payment:" in msg
+    
