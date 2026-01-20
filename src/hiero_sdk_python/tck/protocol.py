@@ -1,37 +1,29 @@
-# Implement response formatting:
-# - Create success response builder wrapping result in JSON-RPC 2.0 format
-# - Create error response builder wrapping JsonRpcError
-# - Handle null id for notifications
-# - Ensure JSON-serializability
 import json
 from typing import Any, Dict, Optional, Union
-from hiero_sdk_python.tck.errors import JsonRpcError
+from hiero_sdk_python.tck.errors import JsonRpcError, PARSE_ERROR, INVALID_REQUEST
 
 def parse_json_rpc_request(request_json: str) -> Union[Dict[str, Any], 'JsonRpcError']:
-    PARSE_ERROR = {'code': -32700, 'message': 'Parse error'}
-    INVALID_REQUEST = {'code': -32600, 'message': 'Invalid Request'}
-
+    """Parse and validate a JSON-RPC 2.0 request."""
     try:
         request = json.loads(request_json)
     except json.JSONDecodeError:
-        return JsonRpcError(PARSE_ERROR['code'], PARSE_ERROR['message'])
+        return JsonRpcError(PARSE_ERROR, 'Parse error')
 
     if not isinstance(request, dict):
-        return JsonRpcError(INVALID_REQUEST['code'], INVALID_REQUEST['message'])
-
+        return JsonRpcError(INVALID_REQUEST, 'Invalid Request')
     if request.get('jsonrpc') != '2.0':
-        return JsonRpcError(INVALID_REQUEST['code'], INVALID_REQUEST['message'])
+        return JsonRpcError(INVALID_REQUEST, 'Invalid Request')
 
     method = request.get('method')
     if not isinstance(method, str):
-        return JsonRpcError(INVALID_REQUEST['code'], INVALID_REQUEST['message'])
+        return JsonRpcError(INVALID_REQUEST, 'Invalid Request')
 
     if 'id' not in request:
-        return JsonRpcError(INVALID_REQUEST['code'], INVALID_REQUEST['message'])
+        return JsonRpcError(INVALID_REQUEST, 'Invalid Request')
 
     params = request.get('params', {})
     if not (isinstance(params, (dict, list)) or params is None):
-        return JsonRpcError(INVALID_REQUEST['code'], INVALID_REQUEST['message'])
+        return JsonRpcError(INVALID_REQUEST, 'Invalid Request')
 
     session_id = None
     if isinstance(params, dict) and 'sessionId' in params:
@@ -46,26 +38,27 @@ def parse_json_rpc_request(request_json: str) -> Union[Dict[str, Any], 'JsonRpcE
     }
 
 def build_json_rpc_success_response(result: Any, request_id: Optional[Union[str, int]]) -> Dict[str, Any]:
+    """Build a JSON-RPC 2.0 success response."""
     response = {
         'jsonrpc': '2.0',
+        'id': request_id,
         'result': result,
-        'id': request_id
-    }
-    return response
-# Implement response formatting:
-# - Create success response builder wrapping result in JSON-RPC 2.0 format
-# - Create error response builder wrapping JsonRpcError
-# - Handle null id for notifications
-# - Ensure JSON-serializability
-def build_json_rpc_error_response(error: JsonRpcError, request_id: Optional[Union[str, int]]) -> Dict[str, Any]:
-    response = {
-        'jsonrpc': '2.0',
-        'error': {
-            'code': error.code,
-            'message': error.message,
-            'data': error.data
-        },
-        'id': request_id
     }
     return response
 
+def build_json_rpc_error_response(error: JsonRpcError,
+                                  request_id: Optional[Union[str, int]]) -> Dict[str, Any]:
+    """Build a JSON-RPC 2.0 error response."""
+    error_obj = {
+        'code': error.code,
+        'message': error.message
+    }
+    if error.data is not None:
+        error_obj['data'] = error.data
+
+    response = {
+        'jsonrpc': '2.0',
+        'id': request_id,
+        'error': error_obj,
+    }
+    return response
