@@ -2,12 +2,21 @@ import json
 from typing import Any, Dict, Optional, Union
 from hiero_sdk_python.tck.errors import JsonRpcError, PARSE_ERROR, INVALID_REQUEST
 
-def parse_json_rpc_request(request_json: str) -> Union[Dict[str, Any], 'JsonRpcError']:
-    """Parse and validate a JSON-RPC 2.0 request."""
-    try:
-        request = json.loads(request_json)
-    except json.JSONDecodeError:
-        return JsonRpcError(PARSE_ERROR, 'Parse error')
+def parse_json_rpc_request(request_in: Any) -> Union[Dict[str, Any], 'JsonRpcError']:
+    """Parse and validate a JSON-RPC 2.0 request.
+
+    Accepts either a JSON string or a pre-parsed dict (e.g., FastAPI/Flask request body).
+    """
+    # Normalize input to a dict
+    if isinstance(request_in, str):
+        try:
+            request = json.loads(request_in)
+        except json.JSONDecodeError:
+            return JsonRpcError(PARSE_ERROR, 'Parse error')
+    elif isinstance(request_in, dict):
+        request = request_in
+    else:
+        return JsonRpcError(INVALID_REQUEST, 'Invalid Request')
 
     if not isinstance(request, dict):
         return JsonRpcError(INVALID_REQUEST, 'Invalid Request')
