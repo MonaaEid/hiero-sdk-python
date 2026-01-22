@@ -1,9 +1,7 @@
-import json
-from typing import Any, Dict
 from hiero_sdk_python.tck.errors import JsonRpcError
 from hiero_sdk_python.tck.handlers import safe_dispatch
 from hiero_sdk_python.tck.protocol import build_json_rpc_error_response, build_json_rpc_success_response, parse_json_rpc_request
-from flask import Flask, request, jsonify
+from flask import Flask, request
 
 app = Flask(__name__)
 
