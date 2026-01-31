@@ -1,15 +1,14 @@
-from hiero_sdk_python.tck.handlers.registry import register_handler, validate_request_params
+from tck.handlers.registry import register_handler, validate_request_params
 from hiero_sdk_python import Client, AccountId, PrivateKey, Network
 from hiero_sdk_python.node import _Node
-from hiero_sdk_python.tck.client_manager import store_client, remove_client
-from hiero_sdk_python.tck.errors import INVALID_PARAMS
-from hiero_sdk_python.tck.errors import JsonRpcError
+from tck.client_manager import store_client, remove_client
+from tck.errors import INVALID_PARAMS
+from tck.errors import JsonRpcError
 from typing import Any, Dict, Optional, List
 
 
 def _create_node_objects(node_addresses: List[str]) -> List[_Node]:
     """Convert node addresses to _Node objects with generated AccountIds.
-    
     Args:
         node_addresses: List of node address strings
         
@@ -26,13 +25,12 @@ def _create_node_objects(node_addresses: List[str]) -> List[_Node]:
 
 def _create_custom_network_client(network_config: Dict[str, Any]) -> Client:
     """Create a client with custom network configuration.
-    
     Args:
         network_config: Dictionary containing 'nodes' key with list of node addresses
-        
+  
     Returns:
         Configured Client instance
-        
+
     Raises:
         JsonRpcError: If nodes configuration is invalid
     """
@@ -47,7 +45,6 @@ def _create_custom_network_client(network_config: Dict[str, Any]) -> Client:
 
 def _create_client(network_param: Optional[Any]) -> Client:
     """Create and return the appropriate Client based on network parameter.
-    
     Args:
         network_param: Network specification (None for testnet, 'mainnet', or custom dict)
         
@@ -59,13 +56,13 @@ def _create_client(network_param: Optional[Any]) -> Client:
     """
     if network_param is None:
         return Client.for_testnet()
-    
+
     if network_param == 'mainnet':
         return Client.for_mainnet()
-    
+
     if isinstance(network_param, dict) and 'nodes' in network_param:
         return _create_custom_network_client(network_param)
-    
+
     raise JsonRpcError(INVALID_PARAMS, 'Invalid params: unknown network specification')
 
 

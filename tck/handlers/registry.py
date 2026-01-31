@@ -1,8 +1,8 @@
 """Build a flexible registry-based method routing system that can dispatch 
 requests to handlers and transform exceptions into JSON-RPC errors."""
 from typing import Any, Dict, Optional, Union, Callable
-from hiero_sdk_python.tck.errors import INTERNAL_ERROR, INVALID_PARAMS, METHOD_NOT_FOUND, HIERO_ERROR, INVALID_REQUEST
-from hiero_sdk_python.tck.protocol import build_json_rpc_error_response, JsonRpcError
+from tck.errors import INTERNAL_ERROR, INVALID_PARAMS, METHOD_NOT_FOUND, HIERO_ERROR, INVALID_REQUEST
+from tck.protocol import build_json_rpc_error_response, JsonRpcError
 from hiero_sdk_python.exceptions import PrecheckError, ReceiptStatusError, MaxAttemptsError
 
 
@@ -38,24 +38,23 @@ def dispatch(method_name: str, params: Any, session_id: Optional[str]) -> Any:
         return handler(params)
     except JsonRpcError:
         raise
+    except (PrecheckError, ReceiptStatusError, MaxAttemptsError) as e:
+        raise JsonRpcError(HIERO_ERROR, 'Hiero error', str(e)) from e
     except Exception as e:
-        error = JsonRpcError(INTERNAL_ERROR, 'Internal error', str(e))
-        return build_json_rpc_error_response(error, None)
+        raise JsonRpcError(INTERNAL_ERROR, 'Internal error', str(e)) from e
 
 def safe_dispatch(method_name: str,
                   params: Any,
-                  session_id: Optional[str]) -> Union[Any, Dict[str, Any]]:
+                  session_id: Optional[str],
+                  request_id: Optional[Union[str, int]]) -> Union[Any, Dict[str, Any]]:
     """Safely dispatch the request and handle exceptions."""
     try:
         return dispatch(method_name, params, session_id)
     except JsonRpcError as e:
-        return build_json_rpc_error_response(e, None)
-    except (PrecheckError, ReceiptStatusError, MaxAttemptsError) as e:
-        error = JsonRpcError(HIERO_ERROR, 'Hiero error', str(e))
-        return build_json_rpc_error_response(error, None)
-    except Exception as e:
+        return build_json_rpc_error_response(e, request_id)
+    except Exception as e: # COULD BE REMOVED LATER as dispatch() properly handles all exceptions
         error = JsonRpcError(INTERNAL_ERROR, 'Internal error', str(e))
-        return build_json_rpc_error_response(error, None)
+        return build_json_rpc_error_response(error, request_id)
 
 def validate_request_params(params: Any, required_fields: Dict[str, type]) -> None:
     """Validate that required fields are present in params with correct types."""

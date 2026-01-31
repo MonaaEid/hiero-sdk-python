@@ -1,0 +1,236 @@
+"""Test cases for the Hiero SDK TCK handlers registry and dispatch functionality."""
+import pytest
+from hiero_sdk_python.exceptions import (PrecheckError, ReceiptStatusError, MaxAttemptsError)
+from tck.handlers.registry import (
+    register_handler, get_handler, get_all_handlers, dispatch, safe_dispatch,
+    validate_request_params
+)
+from tck.errors import (
+    JsonRpcError,
+    METHOD_NOT_FOUND,
+    INTERNAL_ERROR,
+    HIERO_ERROR,
+    INVALID_PARAMS,
+    INVALID_REQUEST)
+from tck.handlers import registry
+
+pytestmark = pytest.mark.unit
+
+@pytest.fixture(autouse=True)
+def clear_handlers():
+    """Clear the handlers registry before each test."""
+    registry._HANDLERS.clear()
+    yield
+    registry._HANDLERS.clear()
+
+
+class TestHandlerRegistration:
+    """Test handler registration via decorator."""
+    
+    def test_handler_registration_via_decorator(self):
+        """Test that @register_handler decorator adds handler to registry."""
+        @register_handler("test_method")
+        def test_handler(_params):
+            return {"status": "ok"}
+        
+        handler = get_handler("test_method")
+        assert handler is not None
+        assert handler({"test": "param"}) == {"status": "ok"}
+    
+    def test_get_all_handlers(self):
+        """Test that get_all_handlers returns copy of all registered handlers."""
+        @register_handler("method1")
+        def handler1(_params):
+            return "result1"
+        
+        @register_handler("method2")
+        def handler2(_params):
+            return "result2"
+        
+        all_handlers = get_all_handlers()
+        assert len(all_handlers) == 2
+        assert "method1" in all_handlers
+        assert "method2" in all_handlers
+    
+    def test_get_nonexistent_handler_returns_none(self):
+        """Test that getting a non-existent handler returns None."""
+        handler = get_handler("nonexistent")
+        assert handler is None
+
+
+class TestDispatch:
+    """Test method dispatch functionality."""
+    
+    def test_dispatch_registered_method(self):
+        """Test that dispatch invokes registered handler correctly."""
+        @register_handler("setup")
+        def setup_handler(_params):
+            return {"ready": True}
+        
+        result = dispatch("setup", {"key": "value"}, None)
+        assert result == {"ready": True}
+    
+    def test_dispatch_with_session_id(self):
+        """Test that dispatch passes session_id to handler when provided."""
+        @register_handler("session_method")
+        def session_handler(params, session_id):
+            return {"session": session_id, "params": params}
+        
+        result = dispatch("session_method", {"data": "test"}, "session123")
+        assert result == {"session": "session123", "params": {"data": "test"}}
+    
+    def test_dispatch_unknown_method_raises_method_not_found(self):
+        """Test that dispatching unknown method raises METHOD_NOT_FOUND error."""
+        with pytest.raises(JsonRpcError) as excinfo:
+            dispatch("unknown_method", {}, None)
+        
+        assert excinfo.value.code == METHOD_NOT_FOUND
+        assert "Method not found" in excinfo.value.message
+    
+    def test_dispatch_reraises_json_rpc_error(self):
+        """Test that dispatch re-raises JsonRpcError exceptions."""
+        @register_handler("error_method")
+        def error_handler(params):
+            raise JsonRpcError(INVALID_PARAMS, "Invalid params")
+        
+        with pytest.raises(JsonRpcError) as excinfo:
+            dispatch("error_method", {}, None)
+        
+        assert excinfo.value.code == INVALID_PARAMS
+    
+    def test_dispatch_converts_generic_exception_to_internal_error(self):
+        """Test that dispatch converts generic exceptions to INTERNAL_ERROR."""
+        @register_handler("crash_method")
+        def crash_handler(params):
+            raise ValueError("Something went wrong")
+        
+        with pytest.raises(JsonRpcError) as excinfo:
+            dispatch("crash_method", {}, None)
+        
+        assert excinfo.value.code == INTERNAL_ERROR
+        assert "Something went wrong" in excinfo.value.data
+
+
+class TestSafeDispatch:
+    """Test safe dispatch with error handling."""
+    
+    def test_safe_dispatch_returns_success_response(self):
+        """Test that safe_dispatch returns result for successful dispatch."""
+        @register_handler("success_method")
+        def success_handler(_params):
+            return {"success": True}
+        
+        # safe_dispatch should return raw result without wrapping
+        result = safe_dispatch("success_method", {}, None, 1)
+        assert result == {"success": True}
+    
+    def test_safe_dispatch_returns_error_response_for_json_rpc_error(self):
+        """Test that safe_dispatch returns error response for JsonRpcError."""
+        @register_handler("json_error_method")
+        def error_handler(_params):
+            raise JsonRpcError(INVALID_PARAMS, "Bad params", "field_name")
+        
+        response = safe_dispatch("json_error_method", {}, None, 42)
+        
+        assert "error" in response
+        assert response["error"]["code"] == INVALID_PARAMS
+        assert response["error"]["message"] == "Bad params"
+        assert response["error"]["data"] == "field_name"
+        assert response["id"] == 42
+    
+    def test_safe_dispatch_transforms_precheck_error(self):
+        """Test that safe_dispatch transforms PrecheckError to HIERO_ERROR."""
+        @register_handler("precheck_method")
+        def precheck_handler(_params):
+            raise PrecheckError(status=123, transaction_id="0.0.456", message="Account does not exist")
+        
+        response = safe_dispatch("precheck_method", {}, None, 1)
+        
+        assert "error" in response
+        assert response["error"]["code"] == HIERO_ERROR
+        assert "Hiero error" in response["error"]["message"]
+    
+    def test_safe_dispatch_transforms_receipt_status_error(self):
+        """Test that safe_dispatch transforms ReceiptStatusError to HIERO_ERROR."""
+        @register_handler("receipt_method")
+        def receipt_handler(params):
+            raise ReceiptStatusError(status="FAILED", transaction_id="0.0.123", transaction_receipt=None, message="Transaction failed")
+        
+        response = safe_dispatch("receipt_method", {}, None, 2)
+        
+        assert "error" in response
+        assert response["error"]["code"] == HIERO_ERROR
+    
+    def test_safe_dispatch_transforms_max_attempts_error(self):
+        """Test that safe_dispatch transforms MaxAttemptsError to HIERO_ERROR."""
+        @register_handler("max_attempts_method")
+        def max_attempts_handler(params):
+            raise MaxAttemptsError("Max retries exceeded", node_id="0.0.1")
+        
+        response = safe_dispatch("max_attempts_method", {}, None, 3)
+        
+        assert "error" in response
+        assert response["error"]["code"] == HIERO_ERROR
+    
+    def test_safe_dispatch_transforms_generic_exception(self):
+        """Test that safe_dispatch transforms generic Exception to INTERNAL_ERROR."""
+        @register_handler("generic_error_method")
+        def generic_error_handler(params):
+            raise RuntimeError("Unexpected error")
+        
+        response = safe_dispatch("generic_error_method", {}, None, 4)
+        
+        assert "error" in response
+        assert response["error"]["code"] == INTERNAL_ERROR
+        assert response["id"] == 4
+    
+    def test_safe_dispatch_includes_request_id_in_response(self):
+        """Test that safe_dispatch returns raw result without id field (id is added at server level)."""
+        @register_handler("test_id_method")
+        def test_id_handler(_params):
+            return {"data": "test"}
+        
+        # safe_dispatch returns raw result; request_id is added by server layer
+        response = safe_dispatch("test_id_method", {}, None, "request_id_123")
+        assert response == {"data": "test"}
+
+
+class TestValidateRequestParams:
+    """Test request parameter validation."""
+    
+    def test_validate_valid_params(self):
+        """Test that validate_request_params accepts valid params."""
+        params = {"memo": "Test topic", "sequence_number": 42}
+        required = {"memo": str, "sequence_number": int}
+        
+        # Should not raise
+        validate_request_params(params, required)
+    
+    def test_validate_missing_required_field(self):
+        """Test that missing required field raises INVALID_PARAMS."""
+        params = {"memo": "Test topic"}
+        required = {"memo": str, "sequence_number": int}
+        
+        with pytest.raises(JsonRpcError) as excinfo:
+            validate_request_params(params, required)
+        
+        assert excinfo.value.code == INVALID_PARAMS
+        assert "sequence_number" in excinfo.value.message
+    
+    def test_validate_incorrect_field_type(self):
+        """Test that incorrect field type raises INVALID_PARAMS."""
+        params = {"memo": "Test topic", "sequence_number": "not_a_number"}
+        required = {"memo": str, "sequence_number": int}
+        
+        with pytest.raises(JsonRpcError) as excinfo:
+            validate_request_params(params, required)
+        
+        assert excinfo.value.code == INVALID_PARAMS
+        assert "sequence_number" in excinfo.value.message
+    
+    def test_validate_non_dict_params_raises_invalid_request(self):
+        """Test that non-dict params raises INVALID_REQUEST."""
+        with pytest.raises(JsonRpcError) as excinfo:
+            validate_request_params(["not", "a", "dict"], {"memo": str})
+        
+        assert excinfo.value.code == INVALID_REQUEST

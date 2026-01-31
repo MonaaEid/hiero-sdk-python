@@ -1,11 +1,11 @@
+
 import json
 from typing import Any, Dict, Optional, Union
-from hiero_sdk_python.tck.errors import JsonRpcError, PARSE_ERROR, INVALID_REQUEST
+from tck.errors import JsonRpcError, PARSE_ERROR, INVALID_REQUEST
 
 
 def _normalize_request_input(request_in: Any) -> Union[Dict[str, Any], JsonRpcError]:
-    """Normalize request input to a dictionary.
-    
+    """Normalize request input to a dictionary.s
     Args:
         request_in: Either a JSON string or a pre-parsed dict
         
@@ -26,46 +26,43 @@ def _normalize_request_input(request_in: Any) -> Union[Dict[str, Any], JsonRpcEr
 
 def _validate_json_rpc_structure(request: Dict[str, Any]) -> Optional[JsonRpcError]:
     """Validate the basic JSON-RPC 2.0 structure.
-    
     Args:
         request: The parsed request dictionary
-        
+
     Returns:
         JsonRpcError if validation fails, None if valid
     """
     if not isinstance(request, dict):
         return JsonRpcError(INVALID_REQUEST, 'Invalid Request')
-    
+
     if request.get('jsonrpc') != '2.0':
         return JsonRpcError(INVALID_REQUEST, 'Invalid Request')
-    
+
     if 'id' not in request:
         return JsonRpcError(INVALID_REQUEST, 'Invalid Request')
-    
+
     method = request.get('method')
     if not isinstance(method, str):
         return JsonRpcError(INVALID_REQUEST, 'Invalid Request')
-    
+
     params = request.get('params', {})
     if not (isinstance(params, (dict, list)) or params is None):
         return JsonRpcError(INVALID_REQUEST, 'Invalid Request')
-    
+
     return None
 
 
-def _extract_session_id(params: Any) -> tuple[Any, Optional[str]]:
+def _extract_session_id(params: Any) -> Optional[str]:
     """Extract session ID from params if present.
-    
     Args:
         params: Request parameters (dict, list, or None)
         
     Returns:
-        Tuple of (modified_params, session_id)
+        Session ID if present, None otherwise
     """
-    session_id = None
-    if isinstance(params, dict) and 'sessionId' in params:
-        session_id = params.pop('sessionId')
-    return params, session_id
+    if isinstance(params, dict):
+        return params.get('sessionId')
+    return None
 
 
 def parse_json_rpc_request(request_in: Any) -> Union[Dict[str, Any], 'JsonRpcError']:
@@ -85,7 +82,7 @@ def parse_json_rpc_request(request_in: Any) -> Union[Dict[str, Any], 'JsonRpcErr
 
     # Extract session ID from params
     params = request.get('params', {})
-    params, session_id = _extract_session_id(params)
+    session_id = _extract_session_id(params)
 
     return {
         'jsonrpc': '2.0',
@@ -107,7 +104,11 @@ def build_json_rpc_success_response(result: Any, request_id: Optional[Union[str,
 def build_json_rpc_error_response(error: JsonRpcError,
                                   request_id: Optional[Union[str, int]]) -> Dict[str, Any]:
     """Build a JSON-RPC 2.0 error response."""
+    # code = error.code if hasattr(error, 'code') else error['code']
+    # message = error.message if hasattr(error, 'message') else error['message']
     error_obj = {
+        # 'code': code,
+        # 'message': message
         'code': error.code,
         'message': error.message
     }
