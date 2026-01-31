@@ -48,6 +48,9 @@ lint = [
     "typing-extensions>=4.15.0",
 ]
 
+# TCK dependencies are only needed for running the test server, not for SDK usage
+tck = ["flask>=3.0.0"]
+
 [tool.uv]
 default-groups = ["dev", "lint"]
 
