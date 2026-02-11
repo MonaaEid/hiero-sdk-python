@@ -30,11 +30,6 @@ jobs:
 
       - name: Checkout repository
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 #v6.0.1
-        with:
-          sparse-checkout: |
-            .github/coderabbit/release-pr-prompt.md
-            .github/scripts/post-coderabbit-release-gate-comment.js
-          sparse-checkout-cone-mode: false
 
       - name: Post CodeRabbit release-gate prompt comment
         env: 
