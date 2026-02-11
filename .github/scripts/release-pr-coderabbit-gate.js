@@ -91,7 +91,7 @@ module.exports = async ({ github, context }) => {
     const headRef = pr.head?.ref || "";
 
     // Optional sanity check: base should look like a tag. If it doesn't, still comment but warn.
-    const baseLooksLikeTag = baseRef.startsWith("v") && /\d+\.\d+\.\d+/.test(baseRef);
+    const baseLooksLikeTag = baseRef.startsWith("release-v") && /\d+\.\d+\.\d+/.test(baseRef);
 
     const issue_number = pr.number;
     if (await commentAlreadyExists({ github, owner, repo, issue_number })) {
@@ -102,7 +102,7 @@ module.exports = async ({ github, context }) => {
     const prompt = loadPrompt();
 
     const body = buildBody({ prompt, baseRef, headRef }) +
-      (baseLooksLikeTag ? "" : "\n\n⚠️ Note: base ref does not look like a release tag. For full release diff, set base to the previous tag (e.g. v0.1.10).");
+      (baseLooksLikeTag ? "" : "\n\n⚠️ Note: base ref does not look like a release tag. For full release diff, set base to the previous tag (e.g. release-v0.1.10).");
 
     await github.rest.issues.createComment({
       owner,
@@ -112,8 +112,10 @@ module.exports = async ({ github, context }) => {
     });
 
     console.log("Posted CodeRabbit release-gate comment.");
+    console.log(`PR #${issue_number} (${headRef} → ${baseRef})`);
   } catch (error) {
     console.error(`Error in release PR coderabbit gate: ${error.message}`);
+    console.log(`PR #${issue_number} (${headRef} → ${baseRef})`);
     // Fail silently; this is a non-critical enhancement.
   }
 };
