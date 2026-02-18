@@ -21,6 +21,8 @@ reviews:
   tools:
     ast-grep:
       essential_rules: true
+      rule_dirs:
+        - "custom-protobuf-review"
       packages: # list of packages to install, in future coderabbit will provide a set of packages, beside the essentials one.
         - "hiero-ledger/sdk-collaboration-hub"
 
