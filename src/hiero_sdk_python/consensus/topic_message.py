@@ -39,7 +39,6 @@ class TopicMessage:
     def __init__(
             self,
             consensus_timestamp: datetime,
-            message_data: Dict[str, Union[bytes, int]],
 
             transaction_id: Optional[TransactionId] = None,
     ) -> None:
