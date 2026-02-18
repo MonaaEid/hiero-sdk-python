@@ -18,6 +18,11 @@ reviews:
   in_progress_fortune: false # Do not stall time with a message (spammy)
   poem: false # Do not write a literal poem (spammy)
   enable_prompt_for_ai_agents: false # Disable prompts for AI agents (spammy)
+  tools:
+    ast-grep:
+      essential_rules: true
+      packages: # list of packages to install, in future coderabbit will provide a set of packages, beside the essentials one.
+        - "hiero-ledger/sdk-collaboration-hub"
 
   # TOKEN REVIEW INSTRUCTIONS
   token_review_instructions: &token_review_instructions |
