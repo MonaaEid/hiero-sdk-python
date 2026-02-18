@@ -40,7 +40,7 @@ class TopicMessage:
             self,
             consensus_timestamp: datetime,
             message_data: Dict[str, Union[bytes, int]],
-            chunks: List[TopicMessageChunk],
+
             transaction_id: Optional[TransactionId] = None,
     ) -> None:
         """
@@ -59,7 +59,7 @@ class TopicMessage:
         self.contents: Union[bytes, int] = message_data["contents"]
         self.running_hash: Union[bytes, int] = message_data["running_hash"]
         self.sequence_number: Union[bytes, int] = message_data["sequence_number"]
-        self.chunks: List[TopicMessageChunk] = chunks
+
         self.transaction_id: Optional[TransactionId] = transaction_id
 
     @classmethod
@@ -97,13 +97,13 @@ class TopicMessage:
             responses, key=lambda r: r.chunkInfo.number
         )
 
-        chunks: List[TopicMessageChunk] = []
+
         total_size: int = 0
         transaction_id: Optional[TransactionId] = None
         
         for r in sorted_responses:
             c = TopicMessageChunk(r)
-            chunks.append(c)
+
             
             total_size += len(r.message)
             
@@ -137,7 +137,6 @@ class TopicMessage:
                 "running_hash": running_hash,
                 "sequence_number": sequence_number,
             },
-            chunks,
             transaction_id
         )
 
