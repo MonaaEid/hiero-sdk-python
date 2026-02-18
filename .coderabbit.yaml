@@ -19,7 +19,8 @@ reviews:
   poem: false # Do not write a literal poem (spammy)
   enable_prompt_for_ai_agents: false # Disable prompts for AI agents (spammy)
   knowledge_base:
-    web_search: true
+    web_search:
+      enabled: true
 
 
   # TOKEN REVIEW INSTRUCTIONS
@@ -805,7 +806,7 @@ reviews:
     - path: "src/hiero_sdk_python/consensus/**/*.py"  
       instructions: |  
         Review against protobuf schemas at:  
-        https://github.com/hiero-ledger/sdk-collaboration-hub/tree/main/v3-sandbox/prototype/protobuf/src/main/proto
+        https://github.com/hashgraph/hedera-protobufs/blob/main/mirror/consensus_service.proto
         Ensure all message fields and types align with the latest definitions
 
 chat:
