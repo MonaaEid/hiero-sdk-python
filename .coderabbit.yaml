@@ -798,6 +798,22 @@ reviews:
 
     - path: "src/hiero_sdk_python/contract/**/*_query.py"
       instructions: *query_review_instructions
+    - path: "src/hiero_sdk_python/consensus/**/*.py"  
+      instructions: |  
+        When reviewing Python files, check for imports containing "hapi" in the format:  
+        `from hiero_sdk_python.hapi.<path> import <module>_pb2`  
+          
+        For each such import found:  
+        1. Extract the path component after "hapi" (e.g., "services" from "hapi.services")  
+        2. Extract the module name before "_pb2" (e.g., "consensus_submit_message" from "consensus_submit_message_pb2")  
+        3. Construct the canonical schema URL:   
+           https://github.com/hashgraph/hedera-protobufs/blob/main/<path>/<module>.proto  
+          
+        Example:  
+        For import: `from hiero_sdk_python.hapi.services import consensus_submit_message_pb2`
+        Generate: https://github.com/hashgraph/hedera-protobufs/blob/main/services/consensus_submit_message.proto
+        Ensure all message fields and types align with the latest definitions
+
 
 chat:
   art: false # Don't draw ASCII art (false)
