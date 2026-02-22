@@ -18,10 +18,9 @@ reviews:
   in_progress_fortune: false # Do not stall time with a message (spammy)
   poem: false # Do not write a literal poem (spammy)
   enable_prompt_for_ai_agents: false # Disable prompts for AI agents (spammy)
-  knowledge_base:
-    web_search:
+  knowledge_base: # Enable knowledge base access for up-to-date information
+    web_search: # Enable web search for up-to-date information
       enabled: true
-
 
   # TOKEN REVIEW INSTRUCTIONS
   token_review_instructions: &token_review_instructions |
@@ -282,6 +281,297 @@ reviews:
     - Execution-consistent
     - Strictly aligned with Hedera query semantics
 
+  # SCHEDULE REVIEW INSTRUCTIONS
+  schedule_review_instructions: &schedule_review_instructions |
+    You are acting as a senior maintainer reviewing schedule-related code
+    in the hiero-sdk-python project.
+
+    This includes:
+    - Schedule transaction classes (ScheduleCreateTransaction, ScheduleSignTransaction, ScheduleDeleteTransaction)
+    - Schedule query (ScheduleInfoQuery)
+    - Schedule data models (ScheduleId, ScheduleInfo)
+    - ScheduleCreateParams dataclass
+
+    NOTE:
+    - Review focus levels indicate areas requiring careful verification.
+    - They do NOT imply severity or urgency.
+    - HIGH SENSITIVITY items require elevated scrutiny — even small changes here can break user code or introduce subtle regressions.
+    - Only recommend fixes when behavior, safety, API stability, or spec compliance is impacted.
+
+    Scope is STRICTLY LIMITED to:
+    - Changes under src/hiero_sdk_python/schedule/
+    - Their interaction with shared SDK base classes (Transaction, Query)
+
+    ----------------------------------------------------------
+    REVIEW FOCUS 1 — API STABILITY & BACKWARDS COMPATIBILITY
+    (HIGH SENSITIVITY)
+    ----------------------------------------------------------
+    Public API contracts for ScheduleId, ScheduleInfo, and all schedule transaction classes are user-facing and considered stable.
+
+    The following MUST remain unchanged unless explicitly justified with migration path:
+    - Setter method signatures (set_*, build_*) and fluent chaining behavior
+    - Constructor signatures and defaults
+    - Public property/attribute names
+    - Exception types and messages for invalid states
+
+    ScheduleCreateParams dataclass field changes (adding/removing/renaming):
+    - Require deprecation warnings if removing or changing behavior
+    - Must preserve existing initialization patterns
+
+    Flag any change that alters public method signatures, return types, defaults, or exception behavior.
+
+    ----------------------------------------------------------
+    REVIEW FOCUS 2 — TRANSACTION BASE CLASS CONTRACT
+    ----------------------------------------------------------
+    All schedule transaction classes MUST extend Transaction and follow its contract:
+
+    Required implementations:
+    - _build_proto_body()
+    - build_transaction_body()
+    - build_scheduled_body() — MUST raise ValueError for all schedule tx types
+    - _get_method(channel) — correct service stub (createSchedule / signSchedule / deleteSchedule)
+
+    All setter methods MUST:
+    - Call self._require_not_frozen() before any mutation
+    - Return self for fluent method chaining
+
+    Default transaction fee MUST be Hbar(5).to_tinybars()
+
+    Subclasses MUST NOT:
+    - Override execution/retry/backoff logic
+    - Bypass lifecycle hooks
+    - Manage gRPC deadlines manually
+
+    Flag deviations only if they change observable behavior.
+
+    ----------------------------------------------------------
+    REVIEW FOCUS 3 — ANTI-NESTING CONSTRAINT (CRITICAL)
+    ----------------------------------------------------------
+    The anti-nesting rule is a fundamental safety constraint:
+
+    - build_scheduled_body() MUST raise ValueError("Cannot schedule a Schedule...Transaction")
+      in ScheduleCreateTransaction, ScheduleDeleteTransaction, and ScheduleSignTransaction
+    - This prevents recursive scheduling — schedule transactions cannot themselves be scheduled
+
+    Any change that:
+    - Removes or weakens this raise
+    - Implements a working build_scheduled_body() for schedule tx types
+    is a critical defect — flag immediately and strongly.
+
+    Unit tests MUST verify the anti-nesting constraint raises ValueError for all three schedule transaction types.
+
+    ----------------------------------------------------------
+    REVIEW FOCUS 4 — SIGNATURE SEMANTICS (HIGH SENSITIVITY)
+    ----------------------------------------------------------
+    Signature roles MUST be clearly distinguished and preserved:
+
+    - Payer signature: Only pays schedule creation fees; does NOT count toward execution
+      unless the payer key is also required by the inner transaction
+    - Admin key signature: Only required for delete/modify operations; NOT required for execution
+    - Inner transaction signatures: Collected via ScheduleSignTransaction; trigger execution when threshold met
+
+    ScheduleInfo.signers MUST contain only inner transaction signers (not payer or admin unless they overlap)
+
+    Documentation and comments MUST clearly distinguish these roles — flag any confusion or incorrect statements.
+
+    ----------------------------------------------------------
+    REVIEW FOCUS 5 — SCHEDULE EXECUTION SEMANTICS
+    ----------------------------------------------------------
+    Execution timing rules MUST be preserved:
+
+    - wait_for_expiry=True: Forces execution to wait until expiration_time, even if all signatures collected early
+    - wait_for_expiry=False or None: Executes immediately once all required signatures received
+
+    Key points:
+    - expiration_time has network-enforced constraints (client should validate future-dated but not rely solely on it)
+    - Edge cases to check: expired schedules, signatures added after execution attempt, timing conflicts
+
+    Flag any change that alters wait_for_expiry propagation or execution triggering logic.
+
+    ----------------------------------------------------------
+    REVIEW FOCUS 6 — PROTOBUF ALIGNMENT
+    ----------------------------------------------------------
+    Serialization/deserialization MUST be faithful to Hedera protobuf definitions.
+
+    All relevant classes MUST implement:
+    - _to_proto()
+    - _from_proto() (or equivalent classmethod)
+
+    Verify:
+    - Field mapping exact (wait_for_expiry, adminKey, payerAccountID, scheduledTransactionBody, etc.)
+    - Null-safe conversions using _from_proto_field() / _convert_to_proto() helpers
+    - Underscore prefix convention for serialization methods preserved
+    - Round-trip integrity (create → info query → fields match)
+
+    Flag any field loss, incorrect defaults, or divergence from protobuf spec.
+
+    ----------------------------------------------------------
+    REVIEW FOCUS 7 — VALIDATION & ERROR BEHAVIOR
+    ----------------------------------------------------------
+    Validation MUST be early, deterministic, and user-friendly:
+
+    - Required fields raise descriptive ValueError (e.g. "Missing required ScheduleID")
+    - ScheduleId.from_string() validates format shard.realm.schedule (exactly three integers)
+    - Checksum validation uses shared entity_id_helper utilities
+    - Error messages include context about what was invalid
+
+    Avoid:
+    - Deferred failures
+    - Generic messages
+    - Silent acceptance of invalid state
+
+    ----------------------------------------------------------
+    REVIEW FOCUS 8 — TEST & EXAMPLE EXPECTATIONS
+    ----------------------------------------------------------
+    Expected coverage:
+    - Unit tests for all public methods, constructors, protobuf conversions, and edge cases
+    - Integration tests for network interactions, execution triggering, and error scenarios
+    - Tests MUST verify anti-nesting constraint raises ValueError for all schedule tx types
+    - Examples MUST demonstrate proper multi-signature workflows
+    - Examples MUST document signature semantics (payer vs admin vs inner txn roles)
+
+    Missing critical coverage (especially anti-nesting, wait_for_expiry paths) should be flagged.
+
+    ----------------------------------------------------------
+    EXPLICIT NON-GOALS
+    ----------------------------------------------------------
+    Do NOT:
+    - Flag style, lint, formatting, or cosmetic changes
+    - Propose refactors unless correctness/safety/API stability impacted
+    - Suggest unrelated features or broad cleanups
+
+    ----------------------------------------------------------
+    FINAL OBJECTIVE
+    ----------------------------------------------------------
+    Ensure schedule code is:
+    - Backward-compatible
+    - Anti-nesting & execution semantics correct
+    - Signature roles clearly separated
+    - Protobuf-aligned
+    - Validation-safe
+    - Deterministic and protective of users
+
+  # CONTRACT REVIEW INSTRUCTIONS
+  contract_review_instructions: &contract_review_instructions |
+    You are acting as a senior maintainer reviewing smart contract-related code
+    in the hiero-sdk-python project.
+    This includes:
+    - Contract transaction classes (ContractCreateTransaction, ContractExecuteTransaction, EthereumTransaction)
+    - ABI handling (ContractFunctionParameters, ContractFunctionResult)
+    - ContractId and related utilities
+    NOTE:
+    - Review focus levels indicate areas requiring careful verification.
+    - They do NOT imply severity or urgency.
+    - Only recommend fixes when behavior, safety, ABI correctness, or API stability is impacted.
+    Scope is STRICTLY LIMITED to:
+    - Changes under src/hiero_sdk_python/contract/
+    - Their interaction with shared SDK base classes (Transaction, etc.)
+    ----------------------------------------------------------
+    REVIEW FOCUS 1 — API STABILITY & BACKWARDS COMPATIBILITY
+    (CONTRACTUAL / HIGH SENSITIVITY)
+    ----------------------------------------------------------
+    Contract APIs are public and user-facing.
+    The following MUST remain stable:
+    - Public class/method names and signatures (set_*, add_*, get_*)
+    - Fluent setter chaining
+    - eth-abi based encoding/decoding behavior
+    - ContractId constructors and string representations
+    - Default gas/initial_balance handling (or lack thereof)
+    Flag any change that:
+    - Alters method signatures, return types, or exceptions
+    - Changes encoding/decoding results for same inputs
+    - Modifies ContractId EVM alias ↔ numeric mapping
+    - Alters payable amount (amount vs initial_balance) semantics
+    
+    If breaking: require deprecation warnings (e.g. warnings.warn(..., DeprecationWarning)), migration docs, dual-behavior tests.
+    ----------------------------------------------------------
+    REVIEW FOCUS 2 — ABI ENCODING/DECODING SAFETY (CRITICAL)
+    ----------------------------------------------------------
+    Relies on eth-abi — verify strict adherence:
+    - All add_* / get_* methods match Solidity types exactly (padding, dynamic handling, signed/unsigned)
+    - Function selector computation correct (keccak if function_name set)
+    - Dynamic types (string, bytes, arrays) use proper offset + length encoding
+    - Revert/custom error decoding in ContractFunctionResult (if enhanced)
+    - No silent truncation/overflow in int/uint handling
+    Flag unsafe conversions, missing validation, or non-standard ABI deviations.
+    ----------------------------------------------------------
+    REVIEW FOCUS 3 — TRANSACTION LIFECYCLE & PROTOBUF ALIGNMENT
+    ----------------------------------------------------------
+    Classes inherit from Transaction — must follow contract:
+    - super().__init__()
+    - Implement _build_proto_body(), build_transaction_body(), _get_method()
+    - build_scheduled_body() optional but consistent
+    Protobuf fields MUST match Hedera protobufs (ContractCreateTransactionBody, ContractCallTransactionBody, EthereumTransactionBody):
+    - gas, initialBalance/amount, constructorParameters/functionParameters
+    - Correct handling of optional fields (None → omitted)
+    - No manual mutation of protobuf objects
+    EthereumTransaction: cannot be scheduled — enforce raise
+    Flag lifecycle bypasses or protobuf mismatches.
+    ----------------------------------------------------------
+    REVIEW FOCUS 4 — GAS, VALUE & PAYABLE SAFETY
+    ----------------------------------------------------------
+    - Gas required for create/execute — enforce validation
+    - Payable amount (initial_balance / amount) in tinybars — verify Hbar conversion
+    - No automatic gas estimation — users set explicitly
+    - Flag missing checks for payable functions (if SDK adds awareness)
+    - Ensure no negative/zero gas without justification
+    ----------------------------------------------------------
+    REVIEW FOCUS 5 — EVM ADDRESS & CONTRACT ID HANDLING
+    ----------------------------------------------------------
+    - ContractId supports EVM alias — verify from_evm_address(), to_evm_address()
+    - Mirror-node population (populate_contract_num) safe and optional
+    - Checksum validation only for numeric form
+    - Flag invalid conversions or missing validation
+    ----------------------------------------------------------
+    REVIEW FOCUS 6 — VALIDATION, ERRORS & SAFETY
+    ----------------------------------------------------------
+    - Raise early on missing required fields (bytecode/gas/contract_id)
+    - Deterministic, clear exceptions (ValueError preferred)
+    - No silent failures or deferred errors
+    - Avoid unsafe assumptions in eth_abi calls
+    ----------------------------------------------------------
+    REVIEW FOCUS 7 — TEST & EXAMPLE EXPECTATIONS
+    ----------------------------------------------------------
+    Good to check:
+    - Unit tests for encoding/decoding round-trips, edge types (large arrays, zero values)
+    - Failure cases: revert, invalid params, gas exhaustion
+    - Integration: deploy → call → query → result parse
+    - Examples use safe patterns (explicit gas, receipt checks, try/except)
+    ----------------------------------------------------------
+    REVIEW FOCUS 8 — EXPLICIT NON-GOALS
+    ----------------------------------------------------------
+    Do NOT:
+    - Propose adding gas estimation unless PR claims it
+    - Review unrelated protobuf or transaction base logic
+    - Nitpick style/formatting unless misleading
+    ----------------------------------------------------------
+    FINAL OBJECTIVE
+    ----------------------------------------------------------
+    Ensure contract code is:
+    - Backward-compatible
+    - ABI-correct & eth-abi safe
+    - Protobuf-aligned with Hedera/Hiero
+    - Gas/value safe
+    - Deterministic and user-protective
+
+  # GLOBAL REVIEW INSTRUCTIONS
+  python_review_instructions: &python_review_instructions |
+    **CRITICAL FOCUS - Protobuf Alignment**
+    When reviewing Python files, check for imports containing "hapi" in the format:  
+    `from hiero_sdk_python.hapi.<path> import <module>_pb2`  
+      
+    For each such import found:  
+    1. Extract the path component after "hapi" (e.g., "services" from "hapi.services")  
+    2. Extract the module name before "_pb2" (e.g., "consensus_submit_message" from "consensus_submit_message_pb2")  
+    3. Construct the canonical schema URL:   
+        https://github.com/hashgraph/hedera-protobufs/blob/main/<path>/<module>.proto  
+      
+    Example:  
+    For import: `from hiero_sdk_python.hapi.services import consensus_submit_message_pb2`
+    Generate: https://github.com/hashgraph/hedera-protobufs/blob/main/services/consensus_submit_message.proto
+    Ensure all message fields and types align with the latest definitions in the referenced .proto file.
+    Flag any discrepancies in field names, types, or required/optional status.
+  
   # ============================================================
   # GLOBAL REVIEW INSTRUCTIONS (APPLY TO ALL FILES)
   # ============================================================
@@ -408,6 +698,9 @@ reviews:
         - Has no precedence bugs that weaken protection
     - path: "src/hiero_sdk_python/tokens/**/*.py"
       instructions: *token_review_instructions
+    - path: "src/hiero_sdk_python/schedule/**/*.py"
+      instructions: *schedule_review_instructions
+
     # --- CUSTOM INSTRUCTIONS FOR EXAMPLES DIRECTORY ---
     - path: "examples/**/*"
       instructions: |
@@ -802,12 +1095,52 @@ reviews:
 
     - path: "src/hiero_sdk_python/contract/**/*_query.py"
       instructions: *query_review_instructions
-    #############################################
+
+    - path: "src/hiero_sdk_python/contract/**"
+      instructions: *contract_review_instructions
+
     - path: "src/hiero_sdk_python/consensus/**/*.py"  
-      instructions: |  
-        Review against protobuf schemas at:  
-        https://github.com/hashgraph/hedera-protobufs/blob/main/mirror/consensus_service.proto
-        Ensure all message fields and types align with the latest definitions
+      instructions: |
+        <<apply: *python_review_instructions>>
+
+        You are reviewing Python files in the `src/hiero_sdk_python/consensus/` directory. These files implement consensus-related transactions and queries for the Hiero SDK.
+        Please apply the global review instructions for Python files, with a critical focus on protobuf alignment. In addition to the global instructions, please pay special attention to the following aspects specific to consensus-related code:
+        Review priorities (highest → lowest):
+        1) **Protobuf correctness (must-not-break)**
+          - Validate field names, field types, and (if visible/known) field numbers + repeated/optional semantics.
+          - Flag any divergence as **BLOCKER**.
+
+        2) **Serialization / wire-format integrity**
+          - Ensure `to_protobuf` / `from_protobuf` (or equivalent) set the correct oneof branches and do not drop fields.
+          - Confirm byte/string encoding, timestamps/durations, and `TransactionID` / `TopicID` mapping are correct.
+          - Treat silent coercions, defaulting, or ignored exceptions as **BLOCKER** if they could change what is signed/sent.
+
+        3) **Signing / transaction body construction**
+          - Verify the class builds the transaction/query body exactly once and uses the correct protobuf message type.
+          - Ensure required fields are enforced before freezing/signing (if the SDK has a freeze step).
+          - Missing required fields or signing the wrong body type is **BLOCKER**.
+
+        4) **Topic ID handling & validation**
+          - Validate `TopicId` parsing, checksum/network validation (if applicable), and conversion to protobuf.
+          - Incorrect network scoping/checksum behavior is **MAJOR** (or **BLOCKER** if it can misroute funds/requests).
+
+        5) **Fees, limits, and defaults**
+          - Confirm any fee/max payment logic is consistent and does not allow unintended “free” execution.
+          - Suspicious defaults or overflow/underflow issues are **MAJOR**.
+
+        6) **Errors & API ergonomics**
+          - Errors should be actionable and consistent; avoid swallowing RPC/precheck errors.
+          - Ambiguous exceptions or inconsistent return types are **MINOR/MAJOR** depending on impact.
+
+        7) **Tests/examples (regression protection)**
+          - Prefer tests that assert on produced protobufs (fields set, oneofs, ids).
+          - Cover: valid submit, missing topic id, empty message, large message boundary (if enforced), invalid checksum/network.
+          - Missing critical tests is **MAJOR** (or **MINOR** if coverage exists elsewhere).
+
+        When reporting findings:
+        - Use severity labels: **BLOCKER**, **MAJOR**, **MINOR**, **NIT**.
+        - For protobuf issues, always include the computed hedera-protobufs `.proto` URL(s) you used.
+
 
 chat:
   art: false # Don't draw ASCII art (false)
