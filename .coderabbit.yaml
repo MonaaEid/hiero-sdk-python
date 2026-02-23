@@ -1098,13 +1098,14 @@ reviews:
 
     - path: "src/hiero_sdk_python/contract/**"
       instructions: *contract_review_instructions
-
+      
+    - path: "src/hiero_sdk_python/consensus/**/*.py"
+      instructions: *python_review_instructions
+      
     - path: "src/hiero_sdk_python/consensus/**/*.py"  
       instructions: |
-        <<apply: *python_review_instructions>>
-
         You are reviewing Python files in the `src/hiero_sdk_python/consensus/` directory. These files implement consensus-related transactions and queries for the Hiero SDK.
-        Please apply the global review instructions for Python files, with a critical focus on protobuf alignment. In addition to the global instructions, please pay special attention to the following aspects specific to consensus-related code:
+        Please pay special attention to the following aspects specific to consensus-related code:
         Review priorities (highest → lowest):
         1) **Protobuf correctness (must-not-break)**
           - Validate field names, field types, and (if visible/known) field numbers + repeated/optional semantics.
