@@ -4,6 +4,9 @@ language: "en-US" # USA English
 # It should not state additional information like: related issues, PRs, suggest reviewers
 # It should not continue a casual conversation with users that reply to it
 
+knowledge_base: # Enable knowledge base access for up-to-date information
+  web_search: # Enable web search for up-to-date information
+    enabled: true
 # Only documents non-default options:
 reviews:
   profile: "assertive" # Assertive profile yields more feedback, that may be considered nitpicky.
@@ -18,9 +21,7 @@ reviews:
   in_progress_fortune: false # Do not stall time with a message (spammy)
   poem: false # Do not write a literal poem (spammy)
   enable_prompt_for_ai_agents: false # Disable prompts for AI agents (spammy)
-  knowledge_base: # Enable knowledge base access for up-to-date information
-    web_search: # Enable web search for up-to-date information
-      enabled: true
+
 
   # TOKEN REVIEW INSTRUCTIONS
   token_review_instructions: &token_review_instructions |
@@ -568,6 +569,114 @@ reviews:
       - Do NOT suggest fixes inline.
       - Instead, aggregate all out-of-scope issues into a single comment with a list of recommendations for one or more follow-up issues that can be created.
   path_instructions:
+    # PROTOBUF INSTRUCTIONS
+    - path: "src/hiero_sdk_python/**/*.py"
+      instructions: |
+        ## Protobuf Schema Alignment Review
+    
+        ### Step 1 — Detect protobuf imports
+    
+        Scan the file for all imports matching this pattern:
+          `from hiero_sdk_python.hapi.<path> import <module>_pb2`
+    
+        For each import found, skip `_grpc` stubs (those end in `_pb2_grpc`) — only
+        process `_pb2` message modules.
+    
+        ### Step 2 — Construct the canonical schema URL
+    
+        For each `_pb2` import:
+        1. Extract the path segment after `hapi`
+           (e.g. `services` from `hiero_sdk_python.hapi.services`)
+        2. Extract the module name before `_pb2`
+           (e.g. `transaction_record` from `transaction_record_pb2`)
+        3. Build the canonical URL:
+           `https://github.com/hashgraph/hedera-protobufs/blob/main/<path>/<module>.proto`
+    
+        **Example:**
+        ```
+        Import:  from hiero_sdk_python.hapi.services import transaction_record_pb2
+        Schema:  https://github.com/hashgraph/hedera-protobufs/blob/main/services/transaction_record.proto
+        ```
+    
+        ### Step 3 — Compare the SDK class against the proto schema
+    
+        For each SDK class that calls `_from_proto` or `_to_proto` using messages from
+        the detected proto module, verify the following:
+    
+        #### 3a. Field coverage
+        - Every non-deprecated proto field SHOULD have a corresponding SDK attribute.
+        - Flag any proto field that is present in the schema but missing from the SDK
+          class (either as a dataclass field or handled in `_from_proto`).
+        - Flag any SDK attribute that references a proto field name that does not exist
+          in the schema.
+    
+        #### 3b. Field name mapping
+        - Proto field names use `snake_case` (e.g. `ethereum_hash`) or `camelCase`
+          (e.g. `transactionHash`, `consensusTimestamp`). Verify that `_from_proto`
+          accesses the correct proto field name, not a renamed/misspelled version.
+        - Verify `_to_proto` sets the correct proto field name.
+    
+        #### 3c. Field type alignment
+        Check that each SDK field type correctly represents the proto type:
+    
+        | Proto type             | Expected SDK type                            |
+        |------------------------|----------------------------------------------|
+        | `string`               | `str \| None` or `str`                       |
+        | `bytes`                | `bytes \| None` or `bytes`                   |
+        | `bool`                 | `bool`                                       |
+        | `int32`, `uint32`      | `int`                                        |
+        | `int64`, `uint64`, `sint64` | `int`                                   |
+        | `MessageType`          | corresponding SDK wrapper class or `None`    |
+        | `repeated MessageType` | `list[SdkType]`                              |
+        | `repeated scalar`      | `list[scalar]`                               |
+    
+        #### 3d. `oneof` field handling
+        - Identify all `oneof` blocks in the proto schema for the message.
+        - Verify that `_to_proto` does NOT set more than one field from the same
+          `oneof` block simultaneously. If it does, a `ValueError` guard MUST be
+          present before setting those fields.
+        - Verify that `_from_proto` uses `proto.HasField(...)` (not attribute access)
+          to detect which branch of a `oneof` is populated.
+        - Common `oneof` groups to watch for in `TransactionRecord`:
+          - `oneof body { contractCallResult, contractCreateResult }` (fields 7, 8)
+          - `oneof entropy { prng_bytes, prng_number }` (fields 19, 20)
+    
+        #### 3e. Bytes field normalization
+        - Proto `bytes` fields default to `b""` (empty bytes) when unset, not `None`.
+        - If the SDK models the field as `bytes | None`, verify that `_from_proto`
+          uses `proto.<field> or None` to normalize empty bytes to `None`.
+        - Conversely, if `_to_proto` sets a bytes field, verify it guards against
+          setting `None` (which would cause a protobuf type error).
+    
+        #### 3f. `_from_proto` / `_to_proto` symmetry
+        - Every field parsed in `_from_proto` SHOULD also be serialized in `_to_proto`,
+          and vice versa, unless the field is intentionally read-only (e.g. server-set
+          fields that clients never send).
+        - Flag any asymmetry that is not accompanied by a code comment explaining why.
+    
+        #### 3g. Repeated field default values
+        - SDK attributes representing proto `repeated` fields MUST default to an empty
+          list (`field(default_factory=list)`), never `None`.
+        - Flag any `repeated` field that defaults to `None`.
+    
+        #### 3h. Type annotation consistency
+        - The codebase uses `X | None` union syntax (Python 3.10+). Flag any use of
+          `Optional[X]` from `typing` in newly added or modified code, as it is
+          inconsistent with the established style.
+    
+        ### Step 4 — Report format
+    
+        For each issue found, report:
+        - **File and line**: where the issue occurs
+        - **Proto field**: the canonical proto field name and number from the schema
+        - **Issue type**: one of — Missing field | Wrong field name | Wrong type |
+          oneof violation | Bytes not normalized | Asymmetric round-trip |
+          Wrong default | Style inconsistency
+        - **Description**: concise explanation of the discrepancy
+        - **Suggested fix**: the corrected code snippet
+    
+        If no issues are found for a file, state:
+        ✅ All mapped proto fields align with the schema at `<URL>`.
     # --- CODEOWNERS REVIEW INSTRUCTIONS ---
     - path: ".github/CODEOWNERS"
       instructions: |
@@ -1081,113 +1190,6 @@ reviews:
     - path: "src/hiero_sdk_python/contract/**"
       instructions: *contract_review_instructions
       
-    - path: "src/hiero_sdk_python/**/*.py"
-      instructions: |
-        ## Protobuf Schema Alignment Review
-    
-        ### Step 1 — Detect protobuf imports
-    
-        Scan the file for all imports matching this pattern:
-          `from hiero_sdk_python.hapi.<path> import <module>_pb2`
-    
-        For each import found, skip `_grpc` stubs (those end in `_pb2_grpc`) — only
-        process `_pb2` message modules.
-    
-        ### Step 2 — Construct the canonical schema URL
-    
-        For each `_pb2` import:
-        1. Extract the path segment after `hapi`
-           (e.g. `services` from `hiero_sdk_python.hapi.services`)
-        2. Extract the module name before `_pb2`
-           (e.g. `transaction_record` from `transaction_record_pb2`)
-        3. Build the canonical URL:
-           `https://github.com/hashgraph/hedera-protobufs/blob/main/<path>/<module>.proto`
-    
-        **Example:**
-        ```
-        Import:  from hiero_sdk_python.hapi.services import transaction_record_pb2
-        Schema:  https://github.com/hashgraph/hedera-protobufs/blob/main/services/transaction_record.proto
-        ```
-    
-        ### Step 3 — Compare the SDK class against the proto schema
-    
-        For each SDK class that calls `_from_proto` or `_to_proto` using messages from
-        the detected proto module, verify the following:
-    
-        #### 3a. Field coverage
-        - Every non-deprecated proto field SHOULD have a corresponding SDK attribute.
-        - Flag any proto field that is present in the schema but missing from the SDK
-          class (either as a dataclass field or handled in `_from_proto`).
-        - Flag any SDK attribute that references a proto field name that does not exist
-          in the schema.
-    
-        #### 3b. Field name mapping
-        - Proto field names use `snake_case` (e.g. `ethereum_hash`) or `camelCase`
-          (e.g. `transactionHash`, `consensusTimestamp`). Verify that `_from_proto`
-          accesses the correct proto field name, not a renamed/misspelled version.
-        - Verify `_to_proto` sets the correct proto field name.
-    
-        #### 3c. Field type alignment
-        Check that each SDK field type correctly represents the proto type:
-    
-        | Proto type             | Expected SDK type                            |
-        |------------------------|----------------------------------------------|
-        | `string`               | `str \| None` or `str`                       |
-        | `bytes`                | `bytes \| None` or `bytes`                   |
-        | `bool`                 | `bool`                                       |
-        | `int32`, `uint32`      | `int`                                        |
-        | `int64`, `uint64`, `sint64` | `int`                                   |
-        | `MessageType`          | corresponding SDK wrapper class or `None`    |
-        | `repeated MessageType` | `list[SdkType]`                              |
-        | `repeated scalar`      | `list[scalar]`                               |
-    
-        #### 3d. `oneof` field handling
-        - Identify all `oneof` blocks in the proto schema for the message.
-        - Verify that `_to_proto` does NOT set more than one field from the same
-          `oneof` block simultaneously. If it does, a `ValueError` guard MUST be
-          present before setting those fields.
-        - Verify that `_from_proto` uses `proto.HasField(...)` (not attribute access)
-          to detect which branch of a `oneof` is populated.
-        - Common `oneof` groups to watch for in `TransactionRecord`:
-          - `oneof body { contractCallResult, contractCreateResult }` (fields 7, 8)
-          - `oneof entropy { prng_bytes, prng_number }` (fields 19, 20)
-    
-        #### 3e. Bytes field normalization
-        - Proto `bytes` fields default to `b""` (empty bytes) when unset, not `None`.
-        - If the SDK models the field as `bytes | None`, verify that `_from_proto`
-          uses `proto.<field> or None` to normalize empty bytes to `None`.
-        - Conversely, if `_to_proto` sets a bytes field, verify it guards against
-          setting `None` (which would cause a protobuf type error).
-    
-        #### 3f. `_from_proto` / `_to_proto` symmetry
-        - Every field parsed in `_from_proto` SHOULD also be serialized in `_to_proto`,
-          and vice versa, unless the field is intentionally read-only (e.g. server-set
-          fields that clients never send).
-        - Flag any asymmetry that is not accompanied by a code comment explaining why.
-    
-        #### 3g. Repeated field default values
-        - SDK attributes representing proto `repeated` fields MUST default to an empty
-          list (`field(default_factory=list)`), never `None`.
-        - Flag any `repeated` field that defaults to `None`.
-    
-        #### 3h. Type annotation consistency
-        - The codebase uses `X | None` union syntax (Python 3.10+). Flag any use of
-          `Optional[X]` from `typing` in newly added or modified code, as it is
-          inconsistent with the established style.
-    
-        ### Step 4 — Report format
-    
-        For each issue found, report:
-        - **File and line**: where the issue occurs
-        - **Proto field**: the canonical proto field name and number from the schema
-        - **Issue type**: one of — Missing field | Wrong field name | Wrong type |
-          oneof violation | Bytes not normalized | Asymmetric round-trip |
-          Wrong default | Style inconsistency
-        - **Description**: concise explanation of the discrepancy
-        - **Suggested fix**: the corrected code snippet
-    
-        If no issues are found for a file, state:
-        ✅ All mapped proto fields align with the schema at `<URL>`.
       
     - path: "src/hiero_sdk_python/consensus/**/*.py"  
       instructions: |
