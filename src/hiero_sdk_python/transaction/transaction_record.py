@@ -198,13 +198,13 @@ class TransactionRecord:
         call_result = cls._parse_contract_call_result(proto)
 
         consensus_timestamp = (
-            Timestamp._from_protobuf(proto.consensusTimestamp)
+            Timestamp._from_proto(proto.consensusTimestamp)
             if proto.HasField("consensusTimestamp")
             else None
         )
 
         parent_consensus_timestamp = (
-            Timestamp._from_protobuf(proto.parent_consensus_timestamp)
+            Timestamp._from_proto(proto.parent_consensus_timestamp)
             if proto.HasField("parent_consensus_timestamp")
             else None
         )
@@ -418,10 +418,10 @@ class TransactionRecord:
             record_proto.new_pending_airdrops.add().CopyFrom(pending_airdrop._to_proto())
         
         if self.consensus_timestamp is not None:
-            record_proto.consensusTimestamp.CopyFrom(self.consensus_timestamp._to_protobuf())
+            record_proto.consensusTimestamp.CopyFrom(self.consensus_timestamp._to_proto())
 
         if self.parent_consensus_timestamp is not None:
-            record_proto.parent_consensus_timestamp.CopyFrom(self.parent_consensus_timestamp._to_protobuf())
+            record_proto.parent_consensus_timestamp.CopyFrom(self.parent_consensus_timestamp._to_proto())
 
         if self.schedule_ref is not None:
             record_proto.scheduleRef.CopyFrom(self.schedule_ref._to_proto())
