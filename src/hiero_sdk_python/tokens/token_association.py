@@ -28,7 +28,7 @@ from hiero_sdk_python.tokens.token_id import TokenId
 from hiero_sdk_python.hapi.services.basic_types_pb2 import TokenAssociation as TokenAssociationProto
 
 
-`@dataclass`(frozen=True)
+@dataclass(frozen=True)
 class TokenAssociation:
     """
     A lightweight immutable representation of a token ↔ account association.
