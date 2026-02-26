@@ -254,8 +254,16 @@ class TransactionRecord:
             transfers=transfers,
             new_pending_airdrops=new_pending_airdrops,
             call_result=call_result,
-            prng_number=proto.prng_number,
-            prng_bytes=proto.prng_bytes,
+            prng_number=(
+                proto.prng_number
+                if proto.HasField("prng_number")
+                else None
+            ),
+            prng_bytes=(
+                proto.prng_bytes
+                if proto.HasField("prng_bytes")
+                else None
+            ),
 
             consensus_timestamp=consensus_timestamp,
             parent_consensus_timestamp=parent_consensus_timestamp,
