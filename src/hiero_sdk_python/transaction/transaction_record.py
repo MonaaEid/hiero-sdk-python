@@ -245,7 +245,7 @@ class TransactionRecord:
 
         return cls(
             transaction_id=tx_id,
-            transaction_hash=proto.transactionHash,
+            transaction_hash=proto.transactionHash or None,
             transaction_memo=proto.memo,
             transaction_fee=proto.transactionFee,
             receipt=TransactionReceipt._from_proto(proto.receipt, tx_id),
