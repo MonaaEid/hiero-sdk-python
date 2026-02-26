@@ -35,9 +35,26 @@ issue_has_gfi() {
   [[ "$has" == "true" ]]
 }
 
+# Count open assignments for a user
+# For triage users (mentors), excludes issues with 'mentor-duty' label
+# This allows mentors to be assigned to mentorship issues without consuming their assignment limit
 assignments_count() {
-  # Count only issues (not PRs) assigned to the user, using structured isPullRequest field
-  gh issue list --repo "${REPO}" --assignee "${ASSIGNEE}" --state open --limit 100 --json number,isPullRequest --jq '[.[] | select(.isPullRequest | not)] | length'
+  local permission="${1:-none}"
+  
+  if [[ "$permission" == "triage" ]]; then
+    echo "Triage user detected — excluding mentor-duty issues from count." >&2
+    # For triage users, exclude issues with 'mentor-duty' label
+     gh api "repos/${REPO}/issues?per_page=100&page=1" \
+       -f assignee="${ASSIGNEE}" \
+       -f state=open \
+       --jq '.[] 
+            | select(.pull_request == null)
+            | select(any(.labels[]; .name == "mentor-duty") | not)
+            | .number' | grep -c . || echo 0
+  else
+    # For non-triage users, count all open assignments
+    gh issue list --repo "${REPO}" --assignee "${ASSIGNEE}" --state open --limit 100 --json number --jq 'length'
+  fi
 }
 
 remove_assignee() {
@@ -76,7 +93,7 @@ Hi @$ASSIGNEE, this is the Assignment Bot.
 
 :warning: **Assignment Limit Exceeded**
 
-Your account currently has limited assignment privileges with a maximum of **1 open issue assignment** at a time.
+Your account currently has limited assignment privileges with a maximum of **1 open assignment** at a time.
 
 You currently have $count open issue(s) assigned.  Please complete and merge your existing assignment before requesting a new one.
 
@@ -97,7 +114,7 @@ msg_normal_limit_exceeded() {
   cat <<EOF
 Hi @$ASSIGNEE, this is the Assignment Bot.
 
-Assigning you to this issue would exceed the limit of 2 open issue assignments.
+Assigning you to this issue would exceed the limit of 2 open assignments.
 
 Please resolve and merge your existing assigned issues before requesting new ones.
 EOF
@@ -119,7 +136,7 @@ if is_spam_user; then
   echo "User is in spam list.  Applying restricted assignment rules."
 fi
 
-COUNT="$(assignments_count)"
+COUNT="$(assignments_count "$PERMISSION")"
 
 # Apply assignment rules
 if [[ "$SPAM" == "true" ]]; then

@@ -3,6 +3,7 @@
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/hiero-ledger/hiero-sdk-python/badge)](https://scorecard.dev/viewer/?uri=github.com/hiero-ledger/hiero-sdk-python)
 [![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/10697/badge)](https://bestpractices.coreinfrastructure.org/projects/10697)
 [![License](https://img.shields.io/badge/license-apache2-blue.svg)](LICENSE)
+[![Python](https://img.shields.io/badge/python-3.10%2B-blue)](https://www.python.org/)
 
 A Python SDK for interacting with the Hedera Hashgraph platform.
 
@@ -114,7 +115,7 @@ uv run pytest
 
 - **Blog**: [Hiero Blog](https://hiero.org/blog/)
 - **Videos**: [LFDT YouTube Channel](https://www.youtube.com/@lfdecentralizedtrust/videos)
-- **Community Calls**: [Hiero Calendar](https://zoom-lfx.platform.linuxfoundation.org/meetings/hiero?view=week) (Wednesdays, 2pm UTC)
+- **Community Calls**: [Hiero Calendar](https://zoom-lfx.platform.linuxfoundation.org/meeting/92041330205?password=2f345bee-0c14-4dd5-9883-06fbc9c60581) (Wednesdays, 2pm UTC)
 
 ---
 
