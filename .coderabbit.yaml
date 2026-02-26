@@ -1080,12 +1080,12 @@ reviews:
         2. Extract the module name before `_pb2`
            (e.g. `transaction_record` from `transaction_record_pb2`)
         3. Build the canonical URL:
-           `https://github.com/hashgraph/hedera-protobufs/blob/main/<path>/<module>.proto`
+           `https://github.com/hashgraph/hedera-protobufs/blob/v0.66.0/<path>/<module>.proto`
     
         **Example:**
         ```
         Import:  from hiero_sdk_python.hapi.services import transaction_record_pb2
-        Schema:  https://github.com/hashgraph/hedera-protobufs/blob/main/services/transaction_record.proto
+        Schema:  https://github.com/hashgraph/hedera-protobufs/blob/v0.66.0/services/transaction_record.proto
         ```
     
         ### Step 3 — Compare the SDK class against the proto schema
@@ -1556,7 +1556,7 @@ reviews:
         - Flag any divergence as **BLOCKER**.
 
         ### 2) Serialization / wire-format integrity
-        - Ensure `to_protobuf` / `from_protobuf` (or equivalent) set the correct oneof
+        - Ensure `to_proto` / `from_proto` (or equivalent) set the correct oneof
           branches and do not drop fields.
         - Confirm byte/string encoding, timestamps/durations, and `TransactionID` /
           `TopicID` mapping are correct.
