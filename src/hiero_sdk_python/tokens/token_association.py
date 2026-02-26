@@ -23,36 +23,29 @@ To create an association explicitly, submit a TokenAssociateTransaction.
 """
 
 from dataclasses import dataclass
-from typing import Optional
-
 from hiero_sdk_python.account.account_id import AccountId
 from hiero_sdk_python.tokens.token_id import TokenId
 from hiero_sdk_python.hapi.services.basic_types_pb2 import TokenAssociation as TokenAssociationProto
 
 
-@dataclass(frozen=True)
+`@dataclass`(frozen=True)
 class TokenAssociation:
     """
     A lightweight immutable representation of a token ↔ account association.
-
     Used in:
     - TransactionRecord.automatic_token_associations (list of associations
       created automatically during transaction execution)
-
     Attributes:
         token_id: The identifier of the token being associated.
         account_id: The identifier of the account receiving the association.
-
     See usage examples in:
         examples/tokens/token_association.py
     """
-
-    token_id: Optional[TokenId] = None
+    token_id: TokenId | None = None
     """The identifier of the token being associated."""
+    account_id: AccountId | None = None
 
-    account_id: Optional[AccountId] = None
-    """The identifier of the account receiving the association."""
-
+    
     @classmethod
     def _from_proto(cls, proto: TokenAssociationProto) -> "TokenAssociation":
         """
