@@ -1647,7 +1647,7 @@ reviews:
         - Flag the **missing override** in `TopicMessageSubmitTransaction` as **MAJOR**
           if the base-class default is not appropriate for message submission, or add a
           comment confirming the base-class value is intentional.
-        - Flag any value that deviates from the table above without a comment as **MAJOR**.
+        - Flag any value that deviates from sibling-class defaults as **MAJOR**.
 
         #### 5c) General fee/limit logic
         - Confirm any fee/max payment logic is consistent and does not allow unintended
@@ -1669,6 +1669,175 @@ reviews:
         - Cover: valid submit, missing topic id, empty message, large message boundary (if enforced), invalid checksum/network.
         - Missing critical tests is **MAJOR** (or **MINOR** if coverage exists elsewhere).
 
+        ---
+
+        ## Severity labels
+        Use exactly these labels in all findings:
+        - **BLOCKER** — must be fixed before merge; wire-format, signing, or data-loss risk
+        - **MAJOR** — should be fixed; correctness or significant usability issue
+        - **MINOR** — should be fixed; low-risk correctness or ergonomics issue
+        - **NIT** — optional; style, naming, or documentation only
+
+    - path: "src/hiero_sdk_python/account/**/*.py"
+      instructions: |
+        You are reviewing Python files in the `src/hiero_sdk_python/account/` directory.
+        These files implement account-related transactions, queries, and data types for the Hiero SDK.
+
+        > Note: Protobuf schema alignment (field names, types, oneof, bytes normalization,
+        > repeated defaults, and canonical `.proto` URL derivation) is already enforced by
+        > the global `src/hiero_sdk_python/**/*.py` instruction. Do NOT re-run those checks
+        > here — focus exclusively on the account-domain concerns below.
+
+        ---
+
+        ## Review priorities (highest → lowest)
+
+        ### 1) Protobuf correctness (must-not-break)
+        - Validate field names, field types, and field numbers + repeated/optional semantics.
+        - Flag any divergence as **BLOCKER**.
+
+        ### 2) Serialization / wire-format integrity
+        - Ensure `_to_proto` / `_from_proto` set the correct oneof branches and do not drop fields.
+        - Treat silent coercions, defaulting, or ignored exceptions as **BLOCKER** if they could
+          change what is signed or sent.
+
+        #### 2a) Update-transaction overwrite traps
+        `AccountUpdateTransaction` uses `StringValue` / `BoolValue` / `Int32Value` wrappers to
+        distinguish "set" from "not set". Verify for every optional field that:
+        - The field defaults to `None` (not `""`, `0`, or `False`).
+        - The `_build_proto_body()` guard is `if self.<field> is not None` (not truthiness).
+        - Specifically flag `account_memo`: `StringValue(value="")` will overwrite an on-chain
+          memo with an empty string when the caller never set a memo. An empty string passes
+          `is not None`, so the guard must also exclude `""` OR the field must never default to `""`.
+        - Flag any always-fires wrapper as **BLOCKER** (data-loss risk on update).
+
+        #### 2b) `AccountUpdateParams` mutable default
+        - `AccountUpdateParams.auto_renew_period` is typed as `Duration = AUTO_RENEW_PERIOD`
+          (a module-level `Duration(7890000)` object). This is a **shared mutable default** across
+          all dataclass instances — mutating `.seconds` on one instance affects all others constructed
+          without an explicit `auto_renew_period`.
+        - The fix: default to `None` in the dataclass and assign `AUTO_RENEW_PERIOD` in
+          `AccountUpdateTransaction.__init__` if `None`.
+        - Flag as **MAJOR**.
+
+        #### 2c) `AccountCreateTransaction` staking `oneof` guard
+        In `_build_proto_body()`:
+        ```python
+        elif self.staked_node_id:   # ← falsy check, not `is not None`
+            proto_body.staked_node_id = self.staked_node_id
+        ```
+        A caller who explicitly stakes to node `0` (a valid node ID) will have the staking
+        silently dropped because `0` is falsy. The check MUST be `elif self.staked_node_id is not None`.
+        Flag as **BLOCKER** (silent misrouting of staking).
+
+        ### 3) AccountId — alias / EVM address handling
+        `AccountId` is more complex than a typical entity ID because it has three mutually exclusive
+        identity modes: `num`, `alias_key`, and `evm_address`. Verify:
+
+        #### 3a) `_to_proto` alias encoding asymmetry
+        In `_from_proto` (L209): the alias key bytes are stripped of a 2-byte prefix before calling
+        `PublicKey.from_bytes`. In `_to_proto` (L228): the key is re-serialized via
+        `_to_proto().SerializeToString()` — this produces the full protobuf encoding which
+        **re-adds** the prefix bytes.
+        Verify that the round-trip `_from_proto(_to_proto(account_id))` produces the same key bytes
+        that were originally read. If the prefix stripping and re-addition are asymmetric, the alias
+        will be corrupted on re-serialization.
+        Flag asymmetry as **BLOCKER**.
+
+        #### 3b) `__hash__` excludes alias
+        `__hash__` only hashes `(shard, realm, num)`. Two `AccountId` instances that differ only by
+        `alias_key` or `evm_address` (both with `num=0`) will be considered the same key in a dict/set.
+        This is intentional only if alias-only IDs are never mixed in collections. If they can be, flag
+        as **MAJOR** and suggest including alias bytes in the hash.
+
+        #### 3c) `populate_evm_address` guard on `num == 0`
+        The guard `if self.num is None or self.num == 0` blocks populating the EVM address for account
+        `0.0.0` (a real, if unusual, account). This is likely a safe assumption but should be a **NIT**
+        comment explaining the intent.
+
+        #### 3d) Checksum validation on alias IDs
+        `validate_checksum` and `to_string_with_checksum` both raise `ValueError` if `alias_key` or
+        `evm_address` is set. Verify the error message says "aliasKey or evmAddress" (typo: missing
+        space in "aliasKey") — flag as **NIT**.
+
+        ### 4) `AccountInfo` — `_from_proto` / `_to_proto` asymmetries
+
+        #### 4a) `staked_node_id = 0` silently dropped in `_to_proto`
+        ```python
+        staked_node_id=self.staked_node_id if self.staked_node_id else None
+        ```
+        This is a falsy check: if `staked_node_id == 0` (valid node), it will be serialized as `None`
+        (i.e., not set). Must be:
+        ```python
+        staked_node_id=self.staked_node_id if self.staked_node_id is not None else None
+        ```
+        Flag as **BLOCKER** (wrong node in wire message).
+
+        #### 4b) `staking_info` always serialized
+        In `_to_proto`, `StakingInfo(...)` is always constructed and always set, even when the account
+        has no staking configuration. This sends a non-empty `staking_info` message for every account,
+        which may confuse consumers of the serialized bytes. Consider only setting `staking_info` when
+        at least one staking field is non-None. Flag as **MINOR**.
+
+        #### 4c) `proxy_received` always non-None
+        `proxy_received=Hbar.from_tinybars(proto.proxyReceived)` is called unconditionally — if
+        `proto.proxyReceived == 0`, this produces `Hbar(0)` instead of `None`, making it impossible
+        to distinguish "not set" from "set to zero". Flag as **MINOR** if the field is used to detect
+        whether proxy staking was configured.
+
+        ### 5) Allowance transactions — correctness
+
+        #### 5a) `delete_token_nft_allowance_all_serials` sets `approved_for_all=True` on revoke
+        In `AccountAllowanceApproveTransaction.delete_token_nft_allowance_all_serials` (the method
+        that **revokes** an all-serials allowance), when appending a new entry it sets
+        `approved_for_all=False` — but when mutating an existing entry it sets `approved_for_all=True`.
+        This is internally inconsistent: the mutation path grants what the append path revokes.
+        The mutation branch should also set `approved_for_all=False` to signal revocation.
+        Flag as **BLOCKER** (grants spender unlimited access instead of revoking it).
+
+        #### 5b) `approve_hbar_allowance` accepts `None` amount silently
+        ```python
+        amount=amount.to_tinybars() if amount is not None else 0
+        ```
+        Calling `approve_hbar_allowance(owner, spender, None)` silently produces an allowance of
+        0 tinybars instead of raising `TypeError`. Flag as **MAJOR**.
+
+        #### 5c) Cross-class `transaction_fee` consistency
+        Verify that the hardcoded `_default_transaction_fee` values are intentional:
+
+        | Class | Expected default | Notes |
+        |---|---|---|
+        | `AccountCreateTransaction` | `Hbar(3).to_tinybars()` (3 ℏ) | State creation |
+        | `AccountDeleteTransaction` | `Hbar(2).to_tinybars()` (2 ℏ) | |
+        | `AccountAllowanceApproveTransaction` | `Hbar(1).to_tinybars()` (1 ℏ) | |
+        | `AccountAllowanceDeleteTransaction` | `Hbar(1).to_tinybars()` (1 ℏ) | |
+        | `AccountUpdateTransaction` | *no override* | Relies on base class default |
+
+        Flag the **missing override** in `AccountUpdateTransaction` as **MAJOR** if the base-class
+        default is not appropriate for account updates, or add a comment confirming it is intentional.
+
+        ### 6) `AccountRecordsQuery` — error handling
+        - `_make_request` wraps all logic in a bare `except Exception` + `print` + `traceback.print_exc()`
+          before re-raising. The `print` + `traceback` side-effects are inappropriate for a library;
+          callers cannot suppress them and they pollute stdout. These should be removed.
+        - Flag as **MAJOR** (non-library-safe error handling).
+
+        ### 7) Errors & API ergonomics
+        - Errors should be actionable and consistent; avoid swallowing or printing RPC/precheck errors.
+        - Ambiguous exceptions or inconsistent return types are **MINOR** / **MAJOR** depending on impact.
+        - `AccountId.from_string` uses a try/except-then-alias-fallback pattern: verify the original
+          exception `e` is always chained with `from e` in the final `raise ValueError(...)` so the
+          original parse error is not silently discarded.
+
+        ### 8) Tests / examples (regression protection)
+        - Prefer tests that assert on produced protobufs (fields set, oneofs, ids).
+        - Cover:
+          - AccountId: Round-trip numeric/checksum/alias/EVM forms; invalid formats error; alias-key `num=0` compares/hashes correctly
+          - AccountUpdateTransaction: No shared `auto_renew_period`; empty-memo guard; staking setters mutually exclusive with sentinel clears
+          - AccountCreateTransaction: Preserves `staked_node_id=0`; alias derives from ECDSA key with pre-body missing-key error; tinybars correct for `Hbar`/`int`
+          - AccountAllowanceApproveTransaction: `approve_hbar_allowance(..., None)` raises; all-serials revoke keeps `approved_for_all=False` even after approve-then-delete
+          - AccountInfo: `_to_proto` retains `staked_node_id=0`; `_from_proto(_to_proto(account_info))` round-trips fields
+        - Missing critical tests is **MAJOR** (or **MINOR** if coverage exists elsewhere).
         ---
 
         ## Severity labels
