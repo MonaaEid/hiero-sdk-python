@@ -1,4 +1,4 @@
-from typing import Any, Dict, Optional, List
+from typing import Any, Dict, Optional, List, Tuple
 from hiero_sdk_python.node import _Node
 from hiero_sdk_python import Client, AccountId, PrivateKey, Network
 from tck.handlers.registry import register_handler, validate_request_params
@@ -42,7 +42,7 @@ def _create_custom_network_client(network_config: Dict[str, Any]) -> Client:
     return Client(network)
 
 
-def _create_client(network_param: Optional[Any]) -> Client:
+def _create_client(network_param: Optional[Any], params: Dict[str, Any]) -> Client:
     """Create and return the appropriate Client based on network parameter.
     Args:
         network_param: Network specification (None/'testnet' for testnet, 'mainnet', or custom dict)
@@ -53,6 +53,19 @@ def _create_client(network_param: Optional[Any]) -> Client:
     Raises:
         JsonRpcError: If network specification is invalid
     """
+    # Support legacy TCK setup params for custom nodes.
+    # The JS tests pass nodeIp/nodeAccountId instead of a network object.
+    node_ip = params.get('nodeIp')
+    node_account_id = params.get('nodeAccountId')
+    if isinstance(node_ip, str) and isinstance(node_account_id, str):
+        try:
+            node = _Node(AccountId.from_string(node_account_id), node_ip, None)
+            return Client(Network(nodes=[node]))
+        except Exception as e:
+            raise JsonRpcError.invalid_params_error(
+                message=f'Invalid params: invalid nodeIp/nodeAccountId - {str(e)}'
+            ) from e
+
     if network_param is None or network_param == 'testnet':
         return Client.for_testnet()
 
@@ -65,7 +78,7 @@ def _create_client(network_param: Optional[Any]) -> Client:
     raise JsonRpcError.invalid_params_error(message='Invalid params: unknown network specification')
 
 
-def _parse_operator_credentials(params: Dict[str, Any]) -> tuple[AccountId, PrivateKey]:
+def _parse_operator_credentials(params: Dict[str, Any]) -> Tuple[AccountId, PrivateKey]:
     """Parse and validate operator credentials from parameters.
     
     Args:
@@ -81,7 +94,12 @@ def _parse_operator_credentials(params: Dict[str, Any]) -> tuple[AccountId, Priv
 
     try:
         operator_account_id = AccountId.from_string(operator_account_id_str)
-        operator_private_key = PrivateKey.from_string(operator_private_key_str)
+
+        # Try DER first (common TCK format), then generic parser fallback.
+        try:
+            operator_private_key = PrivateKey.from_string_der(operator_private_key_str)
+        except Exception:
+            operator_private_key = PrivateKey.from_string(operator_private_key_str)
     except Exception as e:
         raise JsonRpcError.invalid_params_error(message=f'Invalid params: invalid operatorAccountId/operatorPrivateKey format - {str(e)}') from e
 
@@ -102,7 +120,7 @@ def setup_handler(params: Dict[str, Any], session_id: Optional[str] = None) -> D
     operator_account_id, operator_private_key = _parse_operator_credentials(params)
 
     # Create client based on network configuration
-    client = _create_client(params.get('network'))
+    client = _create_client(params.get('network'), params)
     client.set_operator(operator_account_id, operator_private_key)
 
     # Store the initialized client

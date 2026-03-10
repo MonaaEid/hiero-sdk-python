@@ -66,7 +66,7 @@ def start_server(config: ServerConfig | None = None):
     if config is None:
         config = ServerConfig()
     logger.info(f"Starting TCK server on {config.host}:{config.port}")
-    app.run(host=config.host, port=config.port)
+    app.run(host=config.host, port=config.port, debug=True)
 
 
 
