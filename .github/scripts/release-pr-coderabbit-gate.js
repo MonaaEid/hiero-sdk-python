@@ -58,7 +58,7 @@ function buildBody({ prompt, baseRef, headRef, baseLooksLikeTag }) {
   const lines = [
     "@coderabbitai review",
     "",
-    MARKER,
+    Marker,
     "",
     `This is a **release-gate** review request for diff **${baseRef} → ${headRef}**.`,
     "",
