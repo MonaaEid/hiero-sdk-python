@@ -27,17 +27,19 @@ function loadPrompt() {
 
 async function commentAlreadyExists({ github, owner, repo, issue_number }) {
   try {
-    const { data } = await github.rest.issues.listComments({
+      // Pull a bounded number of recent comments to avoid pagination complexity.
+      const { data } = await github.rest.issues.listComments({
       owner,
       repo,
       issue_number,
-      per_page: 50, // Reduced for performance; markers are usually early or late
-    });
-    return data.some((c) => c.body && c.body.includes(MARKER));
-  } catch (error) {
-    console.error(`Error checking for existing comments: ${error.message}`);
-    return false; 
-  }
+      per_page: 100,
+      });
+        return data.some((c) => typeof c.body === "string" && c.body.includes(MARKER));
+      }
+  catch (error) {
+      console.error(`Error checking for existing comments: ${error.message}`);
+      return false; // Fail open: allow posting if check fails
+      }
 }
 
 function buildBody({ prompt, baseRef, headRef, baseLooksLikeTag }) {
