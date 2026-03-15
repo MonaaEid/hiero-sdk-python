@@ -53,34 +53,48 @@ async function commentAlreadyExists({ github, owner, repo, issue_number }) {
 }
 
 
-function buildBody({ prompt, baseRef, headRef, baseLooksLikeTag }) {
+function buildBody({ prompt, baseRef, headRef }) {
   // Keep it human-friendly but compact; instructions are collapsible.
-  const lines = [
-    "@coderabbitai review",
+  return [
+    "@coderabbit review",
     "",
-    Marker,
+    MARKER,
     "",
     `This is a **release-gate** review request for diff **${baseRef} → ${headRef}**.`,
     "",
-  ];
-  if (!baseLooksLikeTag) {
-    lines.push(
-    "⚠️ Warning: The base ref does not look like a release tag. For a full release diff, set base to the previous tag (e.g., release-v0.1.10).",
-    ""
-    );
-  }
-
-  lines.push(
-      "<details>",
-      "<summary>CodeRabbit release review instructions</summary>",
-      "",
-      prompt,
-      "",
-      "</details>",
-    );
-  return lines.join("\n");
-
+    "<details>",
+    "<summary>CodeRabbit release review instructions</summary>",
+    "",
+    prompt,
+    "",
+    "</details>",
+  ].join("\n");
 }
+  // const lines = [
+  //   "@coderabbitai review",
+  //   "",
+  //   Marker,
+  //   "",
+  //   `This is a **release-gate** review request for diff **${baseRef} → ${headRef}**.`,
+  //   "",
+  // ];
+  // if (!baseLooksLikeTag) {
+  //   lines.push(
+  //   "⚠️ Warning: The base ref does not look like a release tag. For a full release diff, set base to the previous tag (e.g., release-v0.1.10).",
+  //   ""
+  //   );
+  // }
+
+  // lines.push(
+  //     "<details>",
+  //     "<summary>CodeRabbit release review instructions</summary>",
+  //     "",
+  //     prompt,
+  //     "",
+  //     "</details>",
+  //   );
+  // return lines.join("\n");
+
 
 module.exports = async ({ github, context }) => {
   try {
@@ -120,7 +134,9 @@ module.exports = async ({ github, context }) => {
 
     const prompt = loadPrompt();
 
-    const body = buildBody({ prompt, baseRef, headRef, baseLooksLikeTag });
+    const body = buildBody({ prompt, baseRef, headRef }) +
+    (baseLooksLikeTag ? "" : "\n\n⚠️ Note: base ref does not look like a release tag. For full release diff, set base to the previous tag (e.g. v0.1.10).");
+
 
     await github.rest.issues.createComment({
       owner,
