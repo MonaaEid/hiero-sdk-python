@@ -113,7 +113,7 @@ module.exports = async ({ github, context }) => {
     const baseLooksLikeTag = baseRef.startsWith("release-v") && /\d+\.\d+\.\d+/.test(baseRef);
     
     const issue_number = pr.number;
-    if (await commentAlreadyExists({ github, owner, repo, issue_numbe, Marker })) {
+    if (await commentAlreadyExists({ github, owner, repo, issue_number, Marker })) {
       console.log("Marker comment already exists; not posting again.");
       return;
     }
