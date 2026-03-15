@@ -9,7 +9,7 @@
 const fs = require("fs");
 const path = require("path");
 
-const MARKER = "";
+const MARKER = "<!-- coderabbit-release-gate: v1 -->";
 
 function loadPrompt() {
   const promptPath = path.join(
