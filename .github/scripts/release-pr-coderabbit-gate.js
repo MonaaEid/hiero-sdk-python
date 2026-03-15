@@ -53,21 +53,30 @@ async function commentAlreadyExists({ github, owner, repo, issue_number }) {
 }
 
 
-function buildBody({ prompt, baseRef, headRef }) {
+function buildBody({ prompt, headRef }) {
   // Keep it human-friendly but compact; instructions are collapsible.
   return [
     "@coderabbit review",
     "",
     MARKER,
     "",
-    `This is a **release-gate** review request for diff **${baseRef} → ${headRef}**.`,
+    "## 🚀 Release Gate: Cumulative Audit",
+    "> **Notice to Reviewer**: This is a checkpoint PR for a new release. While the diff here primarily updates versioning and the Changelog, your audit must cover the **entire cumulative scope** of changes since the last version tag.",
+    "",
+    "### 🎯 Audit Objectives",
+    "- Analyze all features merged into `main` since the previous release.",
+    "- Identify breaking changes in the public API or protocol.",
+    "- Verify architectural integrity across the Hiero SDK Python modules.",
     "",
     "<details>",
-    "<summary>CodeRabbit release review instructions</summary>",
+    "<summary><b>View Senior Audit Constraints</b></summary>",
     "",
     prompt,
     "",
     "</details>",
+    "",
+    "---",
+    `*Auditing Branch: \`${headRef}\` against the project history.*`,
   ].join("\n");
 }
   // const lines = [
@@ -120,22 +129,23 @@ module.exports = async ({ github, context }) => {
       return;
     }
 
-    const baseRef = pr.base?.ref || "";
-    const headRef = pr.head?.ref || "";
+    // const baseRef = pr.base?.ref || "";
+    // const headRef = pr.head?.ref || "";
 
     // Optional sanity check: base should look like a tag. If it doesn't, still comment but warn.
-    const baseLooksLikeTag = baseRef.startsWith("release-v") && /\d+\.\d+\.\d+/.test(baseRef);
+    // const baseLooksLikeTag = baseRef.startsWith("release-v") && /\d+\.\d+\.\d+/.test(baseRef);
     
     const issue_number = pr.number;
     if (await commentAlreadyExists({ github, owner, repo, issue_number })) {
-      console.log("Marker comment already exists; not posting again.");
+      console.log("Release gate comment already exists. Skipping.");
       return;
     }
 
+    const headRef = pr.head?.ref || "unknown";
     const prompt = loadPrompt();
-
-    const body = buildBody({ prompt, baseRef, headRef }) +
-    (baseLooksLikeTag ? "" : "\n\n⚠️ Note: base ref does not look like a release tag. For full release diff, set base to the previous tag (e.g. v0.1.10).");
+    const body = buildBody({ prompt, headRef });
+    // const body = buildBody({ prompt, baseRef, headRef }) +
+    // (baseLooksLikeTag ? "" : "\n\n⚠️ Note: base ref does not look like a release tag. For full release diff, set base to the previous tag (e.g. v0.1.10).");
 
 
     await github.rest.issues.createComment({
