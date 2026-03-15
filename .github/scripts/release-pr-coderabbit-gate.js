@@ -30,7 +30,7 @@ function loadPrompt() {
   }
 }
 
-async function commentAlreadyExists({ github, owner, repo, issue_number }) {
+async function commentAlreadyExists({ github, owner, repo, issue_number, MARKER }) {
   try {
       // Pull a bounded number of recent comments to avoid pagination complexity.
       const { data } = await github.rest.issues.listComments({
@@ -108,7 +108,7 @@ module.exports = async ({ github, context }) => {
     const baseLooksLikeTag = baseRef.startsWith("release-v") && /\d+\.\d+\.\d+/.test(baseRef);
     
     const issue_number = pr.number;
-    if (await commentAlreadyExists({ github, owner, repo, issue_number })) {
+    if (await commentAlreadyExists({ github, owner, repo, issue_numbe, MARKER })) {
       console.log("Marker comment already exists; not posting again.");
       return;
     }
