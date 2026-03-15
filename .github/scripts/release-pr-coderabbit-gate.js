@@ -11,7 +11,7 @@
 const fs = require("fs");
 const path = require("path");
 
-const MARKER = "<!-- coderabbit-release-gate: v1 -->";
+const Marker = "<!-- coderabbit-release-gate: v1 -->";
 
 
 function loadPrompt() {
@@ -30,7 +30,7 @@ function loadPrompt() {
   }
 }
 
-async function commentAlreadyExists({ github, owner, repo, issue_number, MARKER }) {
+async function commentAlreadyExists({ github, owner, repo, issue_number, Marker }) {
   try {
       // Pull a bounded number of recent comments to avoid pagination complexity.
       const { data } = await github.rest.issues.listComments({
@@ -39,7 +39,12 @@ async function commentAlreadyExists({ github, owner, repo, issue_number, MARKER 
       issue_number,
       per_page: 100,
       });
-        return data.some((c) => typeof c.body === "string" && c.body.includes(MARKER));
+      data.forEach(c => {
+        if (c.body && c.body.includes(MARKER)) {
+            console.log(`FOUND MATCH in comment by ${c.user.login}: ${c.html_url}`);
+        }
+      });
+        return data.some((c) => typeof c.body === "string" && c.body.includes(Marker));
       }
   catch (error) {
       console.error(`Error checking for existing comments: ${error.message}`);
@@ -108,7 +113,7 @@ module.exports = async ({ github, context }) => {
     const baseLooksLikeTag = baseRef.startsWith("release-v") && /\d+\.\d+\.\d+/.test(baseRef);
     
     const issue_number = pr.number;
-    if (await commentAlreadyExists({ github, owner, repo, issue_numbe, MARKER })) {
+    if (await commentAlreadyExists({ github, owner, repo, issue_numbe, Marker })) {
       console.log("Marker comment already exists; not posting again.");
       return;
     }
