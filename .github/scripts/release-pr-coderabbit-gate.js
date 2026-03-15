@@ -40,7 +40,7 @@ async function commentAlreadyExists({ github, owner, repo, issue_number, Marker 
       per_page: 100,
       });
       data.forEach(c => {
-        if (c.body && c.body.includes(MARKER)) {
+        if (c.body && c.body.includes(Marker)) {
             console.log(`FOUND MATCH in comment by ${c.user.login}: ${c.html_url}`);
         }
       });
