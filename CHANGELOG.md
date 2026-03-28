@@ -7,7 +7,7 @@ This changelog is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.
 ## [Unreleased]
 
 ### Src
-- 
+- Add DER encoding methods `src/hiero_sdk_python/crypto/public_key.py` and update key type alias in `key_utils`
 
 ### Tests
 

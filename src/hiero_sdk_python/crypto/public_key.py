@@ -434,6 +434,84 @@ class PublicKey(Key):
             format=serialization.PublicFormat.SubjectPublicKeyInfo
         )
 
+    @staticmethod
+    def _encode_der_length(length: int) -> bytes:
+        """Encode a DER length field."""
+        if length < 0:
+            raise ValueError("DER length must be non-negative")
+        if length < 0x80:
+            return bytes([length])
+
+        length_bytes = length.to_bytes((length.bit_length() + 7) // 8, "big")
+        return bytes([0x80 | len(length_bytes)]) + length_bytes
+
+    @staticmethod
+    def _encode_der_oid(oid: str) -> bytes:
+        """Encode a dotted OID string into DER OID bytes including tag and length."""
+        parts = [int(part) for part in oid.split(".")]
+        if len(parts) < 2:
+            raise ValueError("OID must contain at least two components")
+
+        first, second = parts[0], parts[1]
+        if first not in (0, 1, 2):
+            raise ValueError("Invalid OID first component")
+        if second < 0 or (first < 2 and second > 39):
+            raise ValueError("Invalid OID second component")
+
+        encoded = bytearray([40 * first + second])
+
+        for value in parts[2:]:
+            if value < 0:
+                raise ValueError("OID components must be non-negative")
+            if value == 0:
+                encoded.append(0)
+                continue
+
+            base128 = []
+            while value > 0:
+                base128.append(value & 0x7F)
+                value >>= 7
+
+            for i in range(len(base128) - 1, -1, -1):
+                byte = base128[i]
+                if i != 0:
+                    byte |= 0x80
+                encoded.append(byte)
+
+        return bytes([0x06]) + PublicKey._encode_der_length(len(encoded)) + bytes(encoded)
+
+    @staticmethod
+    def _encode_der_sequence(content: bytes) -> bytes:
+        """Encode DER SEQUENCE for content bytes."""
+        return bytes([0x30]) + PublicKey._encode_der_length(len(content)) + content
+
+    @staticmethod
+    def _encode_der_bit_string(content: bytes) -> bytes:
+        """Encode DER BIT STRING for content bytes."""
+        payload = bytes([0x00]) + content
+        return bytes([0x03]) + PublicKey._encode_der_length(len(payload)) + payload
+
+    def to_bytes_der_ecdsa_compressed(self) -> bytes:
+        """
+        Returns DER-encoded SubjectPublicKeyInfo for secp256k1 using a compressed point.
+
+        Raises:
+            ValueError: If this key is not ECDSA secp256k1.
+        """
+        if not self.is_ecdsa():
+            raise ValueError("Compressed ECDSA DER export is only supported for ECDSA keys")
+
+        # id-ecPublicKey + secp256k1 OID algorithm identifier
+        algorithm_id = self._encode_der_sequence(
+            self._encode_der_oid("1.2.840.10045.2.1")
+            + self._encode_der_oid("1.3.132.0.10")
+        )
+
+        compressed_point = self.to_bytes_ecdsa(compressed=True)
+        subject_public_key = self._encode_der_bit_string(compressed_point)
+
+        return self._encode_der_sequence(algorithm_id + subject_public_key)
+
     #
     # ---------------------------------
     # Type-specific (Ed25519, ECDSA secp256k1) to hex string.
