@@ -446,6 +446,27 @@ class PublicKey(Key):
         return bytes([0x80 | len(length_bytes)]) + length_bytes
 
     @staticmethod
+    def _encode_der_oid_component(value: int) -> bytes:
+        """Encode one OID component in base-128 continuation format."""
+        if value < 0:
+            raise ValueError("OID components must be non-negative")
+        if value == 0:
+            return b"\x00"
+
+        base128 = []
+        while value > 0:
+            base128.append(value & 0x7F)
+            value >>= 7
+
+        encoded = bytearray()
+        for i in range(len(base128) - 1, -1, -1):
+            byte = base128[i]
+            if i != 0:
+                byte |= 0x80
+            encoded.append(byte)
+        return bytes(encoded)
+
+    @staticmethod
     def _encode_der_oid(oid: str) -> bytes:
         """Encode a dotted OID string into DER OID bytes including tag and length."""
         parts = [int(part) for part in oid.split(".")]
@@ -461,22 +482,7 @@ class PublicKey(Key):
         encoded = bytearray([40 * first + second])
 
         for value in parts[2:]:
-            if value < 0:
-                raise ValueError("OID components must be non-negative")
-            if value == 0:
-                encoded.append(0)
-                continue
-
-            base128 = []
-            while value > 0:
-                base128.append(value & 0x7F)
-                value >>= 7
-
-            for i in range(len(base128) - 1, -1, -1):
-                byte = base128[i]
-                if i != 0:
-                    byte |= 0x80
-                encoded.append(byte)
+            encoded.extend(PublicKey._encode_der_oid_component(value))
 
         return bytes([0x06]) + PublicKey._encode_der_length(len(encoded)) + bytes(encoded)
 
