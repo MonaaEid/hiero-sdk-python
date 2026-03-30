@@ -257,13 +257,13 @@ def test_encode_der_oid_known_values():
 
 
 def test_encode_der_oid_invalid_components_raise():
-    with pytest.raises(ValueError, match="at least two"):
+    with pytest.raises(ValueError, match="Invalid OID structure for '1'"):
         PublicKey._encode_der_oid("1")
 
-    with pytest.raises(ValueError, match="first component"):
+    with pytest.raises(ValueError, match="Invalid OID structure for '3.1.1'"):
         PublicKey._encode_der_oid("3.1.1")
 
-    with pytest.raises(ValueError, match="second component"):
+    with pytest.raises(ValueError, match="Invalid OID structure for '1.40.1'"):
         PublicKey._encode_der_oid("1.40.1")
 
     with pytest.raises(ValueError, match="non-negative"):

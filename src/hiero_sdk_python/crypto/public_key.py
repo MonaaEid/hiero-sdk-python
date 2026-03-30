@@ -434,9 +434,30 @@ class PublicKey(Key):
             format=serialization.PublicFormat.SubjectPublicKeyInfo
         )
 
-    @staticmethod
-    def _encode_der_length(length: int) -> bytes:
-        """Encode a DER length field."""
+    @classmethod
+    def _encode_vlq(cls, value: int) -> bytes:
+        """
+        Encode a value in Variable-Length Quantity (VLQ) format.
+        """
+        if value < 0:
+            raise ValueError("VLQ value must be non-negative")
+        if value == 0:
+            return b"\x00"
+
+        encoded = bytearray()
+        while value > 0:
+            encoded.insert(0, value & 0x7F)
+            value >>= 7
+
+        # Set the high bit (0x80) on all bytes except the last
+        for i in range(len(encoded) - 1):
+            encoded[i] |= 0x80
+
+        return bytes(encoded)
+
+    @classmethod
+    def _encode_der_length(cls, length: int) -> bytes:
+        """Encode a DER length field per X.690 standards."""
         if length < 0:
             raise ValueError("DER length must be non-negative")
         if length < 0x80:
@@ -445,62 +466,48 @@ class PublicKey(Key):
         length_bytes = length.to_bytes((length.bit_length() + 7) // 8, "big")
         return bytes([0x80 | len(length_bytes)]) + length_bytes
 
-    @staticmethod
-    def _encode_der_oid_component(value: int) -> bytes:
-        """Encode one OID component in base-128 continuation format."""
-        if value < 0:
-            raise ValueError("OID components must be non-negative")
-        if value == 0:
-            return b"\x00"
-
-        base128 = []
-        while value > 0:
-            base128.append(value & 0x7F)
-            value >>= 7
-
-        encoded = bytearray()
-        for i in range(len(base128) - 1, -1, -1):
-            byte = base128[i]
-            if i != 0:
-                byte |= 0x80
-            encoded.append(byte)
-        return bytes(encoded)
-
-    @staticmethod
-    def _encode_der_oid(oid: str) -> bytes:
-        """Encode a dotted OID string into DER OID bytes including tag and length."""
+    @classmethod
+    def _encode_der_oid(cls, oid: str) -> bytes:
+        """
+        Encode a dotted OID string into DER OID bytes including tag and length.
+        """
         parts = [int(part) for part in oid.split(".")]
-        if len(parts) < 2:
-            raise ValueError("OID must contain at least two components")
+
+        is_valid = (
+            len(parts) >= 2 and
+            parts[0] in (0, 1, 2) and
+            parts[1] >= 0 and
+            (parts[0] == 2 or parts[1] < 40)
+        )
+        if not is_valid:
+            raise ValueError(f"Invalid OID structure for '{oid}'")
 
         first, second = parts[0], parts[1]
-        if first not in (0, 1, 2):
-            raise ValueError("Invalid OID first component")
-        if second < 0 or (first < 2 and second > 39):
-            raise ValueError("Invalid OID second component")
 
-        encoded = bytearray([40 * first + second])
+        # Encode the combined root using VLQ to handle edge cases correctly
+        encoded = bytearray(cls._encode_vlq(40 * first + second))
 
         for value in parts[2:]:
-            encoded.extend(PublicKey._encode_der_oid_component(value))
+            encoded.extend(cls._encode_vlq(value))
 
-        return bytes([0x06]) + PublicKey._encode_der_length(len(encoded)) + bytes(encoded)
+        return bytes([0x06]) + cls._encode_der_length(len(encoded)) + bytes(encoded)
 
-    @staticmethod
-    def _encode_der_sequence(content: bytes) -> bytes:
-        """Encode DER SEQUENCE for content bytes."""
-        return bytes([0x30]) + PublicKey._encode_der_length(len(content)) + content
+    @classmethod
+    def _encode_der_sequence(cls, content: bytes) -> bytes:
+        """Encode DER SEQUENCE tag, length, and content per X.690 standards."""
+        return bytes([0x30]) + cls._encode_der_length(len(content)) + content
 
-    @staticmethod
-    def _encode_der_bit_string(content: bytes) -> bytes:
-        """Encode DER BIT STRING for content bytes."""
+    @classmethod
+    def _encode_der_bit_string(cls, content: bytes) -> bytes:
+        """
+        Encode DER BIT STRING tag, length, and content per X.690 standards.
+        """
         payload = bytes([0x00]) + content
-        return bytes([0x03]) + PublicKey._encode_der_length(len(payload)) + payload
+        return bytes([0x03]) + cls._encode_der_length(len(payload)) + payload
 
     def to_bytes_der_ecdsa_compressed(self) -> bytes:
         """
-        Returns DER-encoded SubjectPublicKeyInfo for secp256k1 using a compressed point.
-
+        Returns DER-encoded SubjectPublicKeyInfo for secp256k1 using a compressed SEC1 point.
         Raises:
             ValueError: If this key is not ECDSA secp256k1.
         """
@@ -512,7 +519,6 @@ class PublicKey(Key):
             self._encode_der_oid("1.2.840.10045.2.1")
             + self._encode_der_oid("1.3.132.0.10")
         )
-
         compressed_point = self.to_bytes_ecdsa(compressed=True)
         subject_public_key = self._encode_der_bit_string(compressed_point)
 
