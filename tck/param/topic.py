@@ -16,11 +16,12 @@ from tck.util.param_utils import (
 @dataclass
 class CreateTopicFixedFeeParams:
     """Parameters for a fixed fee custom fee in topic creation."""
+
     amount: int | None = None
     denominatingTokenId: str | None = None
 
     @classmethod
-    def parse_json_params(cls, params: dict) -> "CreateTopicFixedFeeParams":
+    def parse_json_params(cls, params: dict) -> CreateTopicFixedFeeParams:
         return cls(
             amount=to_int(params.get("amount")),
             denominatingTokenId=non_empty_string_or_none(params.get("denominatingTokenId")),
@@ -30,12 +31,13 @@ class CreateTopicFixedFeeParams:
 @dataclass
 class CreateTopicCustomFeeParams:
     """Parameters for a custom fee in topic creation."""
+
     feeCollectorAccountId: str | None = None
     feeCollectorsExempt: bool | None = None
     fixedFee: CreateTopicFixedFeeParams | None = None
 
     @classmethod
-    def parse_json_params(cls, params: dict) -> "CreateTopicCustomFeeParams":
+    def parse_json_params(cls, params: dict) -> CreateTopicCustomFeeParams:
         fixed_fee = params.get("fixedFee")
 
         fee_collector_account_id = params.get("feeCollectorAccountId")
@@ -45,17 +47,14 @@ class CreateTopicCustomFeeParams:
         return cls(
             feeCollectorAccountId=fee_collector_account_id,
             feeCollectorsExempt=to_bool(params.get("feeCollectorsExempt")),
-            fixedFee=(
-                CreateTopicFixedFeeParams.parse_json_params(fixed_fee)
-                if isinstance(fixed_fee, dict)
-                else None
-            ),
+            fixedFee=(CreateTopicFixedFeeParams.parse_json_params(fixed_fee) if isinstance(fixed_fee, dict) else None),
         )
 
 
 @dataclass
 class CreateTopicParams(BaseTransactionParams):
     """Parameters for creating a topic. Extends BaseTransactionParams to include common transaction parameters."""
+   
     memo: str | None = None
     adminKey: str | None = None
     submitKey: str | None = None
@@ -66,7 +65,7 @@ class CreateTopicParams(BaseTransactionParams):
     customFees: list[CreateTopicCustomFeeParams] | None = None
 
     @classmethod
-    def parse_json_params(cls, params: dict) -> "CreateTopicParams":
+    def parse_json_params(cls, params: dict) -> CreateTopicParams:
         fee_exempt_keys = params.get("feeExemptKeys")
         if fee_exempt_keys is not None and not isinstance(fee_exempt_keys, list):
             raise ValueError("feeExemptKeys must be a list")
@@ -85,10 +84,7 @@ class CreateTopicParams(BaseTransactionParams):
             feeScheduleKey=non_empty_string_or_none(params.get("feeScheduleKey")),
             feeExemptKeys=non_empty_string_list(fee_exempt_keys),
             customFees=(
-                [
-                    CreateTopicCustomFeeParams.parse_json_params(custom_fee)
-                    for custom_fee in custom_fees
-                ]
+                [CreateTopicCustomFeeParams.parse_json_params(custom_fee) for custom_fee in custom_fees]
                 if custom_fees is not None
                 else None
             ),

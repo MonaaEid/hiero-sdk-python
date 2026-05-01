@@ -34,13 +34,9 @@ class CommonTransactionParams:
         """Apply commonTransactionParams to a given transaction."""
         if self.transactionId is not None:
             try:
-                transaction.set_transaction_id(
-                    TransactionId.from_string(self.transactionId)
-                )
+                transaction.set_transaction_id(TransactionId.from_string(self.transactionId))
             except Exception:
-                transaction.set_transaction_id(
-                    TransactionId.generate(AccountId.from_string(self.transactionId))
-                )
+                transaction.set_transaction_id(TransactionId.generate(AccountId.from_string(self.transactionId)))
 
         if self.maxTransactionFee is not None:
             transaction.transaction_fee = int(self.maxTransactionFee)

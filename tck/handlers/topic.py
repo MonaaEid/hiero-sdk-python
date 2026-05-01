@@ -25,9 +25,7 @@ def _build_custom_fee(custom_fee_params: CreateTopicCustomFeeParams) -> CustomFi
         raise ValueError("feeCollectorAccountId cannot be empty")
 
     if custom_fee_params.feeCollectorAccountId is not None:
-        custom_fee.set_fee_collector_account_id(
-            AccountId.from_string(custom_fee_params.feeCollectorAccountId)
-        )
+        custom_fee.set_fee_collector_account_id(AccountId.from_string(custom_fee_params.feeCollectorAccountId))
 
     if custom_fee_params.feeCollectorsExempt:
         custom_fee.set_all_collectors_are_exempt(custom_fee_params.feeCollectorsExempt)
@@ -37,9 +35,7 @@ def _build_custom_fee(custom_fee_params: CreateTopicCustomFeeParams) -> CustomFi
             custom_fee.amount = custom_fee_params.fixedFee.amount
 
         if custom_fee_params.fixedFee.denominatingTokenId:
-            custom_fee.set_denominating_token_id(
-                TokenId.from_string(custom_fee_params.fixedFee.denominatingTokenId)
-            )
+            custom_fee.set_denominating_token_id(TokenId.from_string(custom_fee_params.fixedFee.denominatingTokenId))
 
     return custom_fee
 
@@ -60,22 +56,16 @@ def _build_create_topic_transaction(params: CreateTopicParams) -> TopicCreateTra
         transaction.set_auto_renew_period(params.autoRenewPeriod)
 
     if params.autoRenewAccountId:
-        transaction.set_auto_renew_account(
-            AccountId.from_string(params.autoRenewAccountId)
-        )
+        transaction.set_auto_renew_account(AccountId.from_string(params.autoRenewAccountId))
 
     if params.feeScheduleKey:
         transaction.set_fee_schedule_key(get_key_from_string(params.feeScheduleKey))
 
     if params.feeExemptKeys:
-        transaction.set_fee_exempt_keys(
-            [get_key_from_string(key) for key in params.feeExemptKeys]
-        )
+        transaction.set_fee_exempt_keys([get_key_from_string(key) for key in params.feeExemptKeys])
 
     if params.customFees is not None:
-        transaction.set_custom_fees(
-            [_build_custom_fee(custom_fee_params) for custom_fee_params in params.customFees]
-        )
+        transaction.set_custom_fees([_build_custom_fee(custom_fee_params) for custom_fee_params in params.customFees])
 
     return transaction
 
@@ -95,6 +85,7 @@ def _get_auto_renew_account_state(client, auto_renew_account_id: str | None) -> 
         if status == "ACCOUNT_DELETED":
             return "deleted"
         return "unknown"
+
 
 @rpc_method("createTopic")
 def create_topic(params: CreateTopicParams) -> CreateTopicResponse:
@@ -119,14 +110,9 @@ def create_topic(params: CreateTopicParams) -> CreateTopicResponse:
         receipt: TransactionReceipt = response.get_receipt(client, validate_status=True)
     except (PrecheckError, ReceiptStatusError) as exc:
         status = ResponseCode(exc.status).name
-        if (
-            params.autoRenewAccountId
-            and status == "INVALID_SIGNATURE"
-            and auto_renew_account_state != "deleted"
-        ):
-            raise JsonRpcError.hiero_error({"status": "INVALID_AUTORENEW_ACCOUNT"})
-        raise
-
+        if params.autoRenewAccountId and status == "INVALID_SIGNATURE" and auto_renew_account_state != "deleted":
+            raise JsonRpcError.hiero_error({"status": "INVALID_AUTORENEW_ACCOUNT"}) from exc
+        raise JsonRpcError.hiero_error({"status": status}) from exc
     topic_id = ""
     if receipt.status == ResponseCode.SUCCESS and receipt.topic_id is not None:
         topic_id = str(receipt.topic_id)

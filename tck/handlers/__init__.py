@@ -1,17 +1,19 @@
 """TCK handlers - auto-import all handler modules."""
 
 # Import registry functions first to make them available
+# Import all handler modules to trigger @rpc_method decorators
+from . import (
+    account,
+    key,
+    sdk,  # setup, reset
+    topic,
+)
 from .registry import (
-    get_handler,
     get_all_handlers,
+    get_handler,
     safe_dispatch,
 )
 
-# Import all handler modules to trigger @rpc_method decorators
-from . import sdk  # setup, reset
-from . import key
-from . import account
-from . import topic
 
 __all__ = [
     "get_handler",

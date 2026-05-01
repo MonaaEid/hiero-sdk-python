@@ -1,4 +1,5 @@
 """Focused createTopic tests for TCK handlers."""
+
 from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
@@ -27,7 +28,18 @@ TEST_KEY = "302e020100300506032b6570042204203e3e6e76b8f1ea10c1d7aaada2fcc088c08a
 
 
 def _params(**overrides):
-    base = dict(sessionId="test", memo=None, adminKey=None, submitKey=None, autoRenewPeriod=None, autoRenewAccountId=None, feeScheduleKey=None, feeExemptKeys=None, customFees=None, commonTransactionParams=None)
+    base = dict(
+        sessionId="test",
+        memo=None,
+        adminKey=None,
+        submitKey=None,
+        autoRenewPeriod=None,
+        autoRenewAccountId=None,
+        feeScheduleKey=None,
+        feeExemptKeys=None,
+        customFees=None,
+        commonTransactionParams=None,
+    )
     base.update(overrides)
     return CreateTopicParams(**base)
 
@@ -55,17 +67,40 @@ def test_parse_json_and_validation():
 
 
 def test_build_custom_fee_and_reject_empty_collector():
-    fee = _build_custom_fee(CreateTopicCustomFeeParams(feeCollectorAccountId="0.0.98", feeCollectorsExempt=True, fixedFee=CreateTopicFixedFeeParams(amount=100, denominatingTokenId="0.0.500")))
+    fee = _build_custom_fee(
+        CreateTopicCustomFeeParams(
+            feeCollectorAccountId="0.0.98",
+            feeCollectorsExempt=True,
+            fixedFee=CreateTopicFixedFeeParams(amount=100, denominatingTokenId="0.0.500"),
+        )
+    )
     assert fee.amount == 100
     assert fee.fee_collector_account_id == AccountId(0, 0, 98)
     assert fee.denominating_token_id == TokenId(0, 0, 500)
     assert fee.all_collectors_are_exempt is True
     with pytest.raises(ValueError, match="feeCollectorAccountId cannot be empty"):
-        _build_custom_fee(CreateTopicCustomFeeParams(feeCollectorAccountId="", fixedFee=CreateTopicFixedFeeParams(amount=1)))
+        _build_custom_fee(
+            CreateTopicCustomFeeParams(feeCollectorAccountId="", fixedFee=CreateTopicFixedFeeParams(amount=1))
+            )
 
 
 def test_build_transaction_core_fields():
-    tx = _build_create_topic_transaction(_params(memo="m", adminKey=TEST_KEY, submitKey=TEST_KEY, autoRenewPeriod=7776000, autoRenewAccountId="0.0.98", feeScheduleKey=TEST_KEY, feeExemptKeys=[TEST_KEY], customFees=[CreateTopicCustomFeeParams(feeCollectorAccountId="0.0.98", fixedFee=CreateTopicFixedFeeParams(amount=100))]))
+    tx = _build_create_topic_transaction(
+        _params(
+            memo="m",
+            adminKey=TEST_KEY,
+            submitKey=TEST_KEY,
+            autoRenewPeriod=7776000,
+            autoRenewAccountId="0.0.98",
+            feeScheduleKey=TEST_KEY,
+            feeExemptKeys=[TEST_KEY],
+            customFees=[
+                CreateTopicCustomFeeParams(
+                    feeCollectorAccountId="0.0.98", fixedFee=CreateTopicFixedFeeParams(amount=100)
+                )
+            ],
+        )
+    )
     assert tx.memo == "m"
     assert getattr(tx.auto_renew_period, "seconds", tx.auto_renew_period) == 7776000
     assert len(tx.custom_fees) == 1
@@ -78,7 +113,9 @@ def test_build_transaction_core_fields():
         (None, "0.0.98", "exists"),
         (PrecheckError(status=ResponseCode.INVALID_ACCOUNT_ID), "0.0.999", "missing"),
         (
-            ReceiptStatusError(status=ResponseCode.ACCOUNT_DELETED, transaction_id=None, transaction_receipt=MagicMock()),
+            ReceiptStatusError(
+                status=ResponseCode.ACCOUNT_DELETED, transaction_id=None, transaction_receipt=MagicMock()
+            ),
             "0.0.98",
             "deleted",
         ),
@@ -114,6 +151,23 @@ def test_create_topic_rejects_missing_auto_renew(_, mock_get_client, client_mock
 def test_create_topic_with_all_parameters(_, mock_get_client, client_mock):
     mock_get_client.return_value = client_mock
     with patch.object(TopicCreateTransaction, "execute", return_value=_success_response(2000)):
-        result = create_topic(_params(memo="Full", adminKey=TEST_KEY, submitKey=TEST_KEY, autoRenewPeriod=7776000, autoRenewAccountId="0.0.98", feeScheduleKey=TEST_KEY, feeExemptKeys=[TEST_KEY], customFees=[CreateTopicCustomFeeParams(feeCollectorAccountId="0.0.98", feeCollectorsExempt=True, fixedFee=CreateTopicFixedFeeParams(amount=500, denominatingTokenId="0.0.500"))]))
+        result = create_topic(
+            _params(
+                memo="Full",
+                adminKey=TEST_KEY,
+                submitKey=TEST_KEY,
+                autoRenewPeriod=7776000,
+                autoRenewAccountId="0.0.98",
+                feeScheduleKey=TEST_KEY,
+                feeExemptKeys=[TEST_KEY],
+                customFees=[
+                    CreateTopicCustomFeeParams(
+                        feeCollectorAccountId="0.0.98",
+                        feeCollectorsExempt=True,
+                        fixedFee=CreateTopicFixedFeeParams(amount=500, denominatingTokenId="0.0.500"),
+                    )
+                ],
+            )
+        )
     assert result.status == "SUCCESS"
     assert result.topicId == "0.0.2000"
