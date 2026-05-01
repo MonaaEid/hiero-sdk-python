@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 from hiero_sdk_python.crypto.key_list import KeyList
 from hiero_sdk_python.crypto.private_key import PrivateKey
 from hiero_sdk_python.crypto.public_key import PublicKey
@@ -8,6 +6,13 @@ from tck.handlers.registry import rpc_method
 from tck.param.key import KeyGenerationParams
 from tck.response.key import KeyGenerationResponse
 from tck.util.key_utils import KeyType, get_key_from_string
+
+
+def _format_generated_public_key(public_key: PublicKey) -> str:
+    """Return DER-hex output expected by TCK for generated public keys."""
+    if public_key.is_ecdsa():
+        return public_key.to_string_der_ecdsa_compressed()
+    return public_key.to_string_der()
 
 
 @rpc_method("generateKey")
@@ -23,7 +28,9 @@ def generate_key(params: KeyGenerationParams) -> KeyGenerationResponse:
         )
 
     if params.threshold is not None and params.type != KeyType.THRESHOLD_KEY:
-        raise JsonRpcError.invalid_params_error("invalid parameters: threshold is only allowed for thresholdKey types.")
+        raise JsonRpcError.invalid_params_error(
+            "invalid parameters: threshold is only allowed for thresholdKey types."
+        )
 
     if params.type == KeyType.THRESHOLD_KEY and params.threshold is None:
         raise JsonRpcError.invalid_params_error(
@@ -60,9 +67,11 @@ def _handle_private_key(params: KeyGenerationParams, response: KeyGenerationResp
     return private_key_string
 
 
-def _handle_public_key(params: KeyGenerationParams, response: KeyGenerationResponse, is_list: bool) -> str:
+def _handle_public_key(
+    params: KeyGenerationParams, response: KeyGenerationResponse, is_list: bool
+) -> str:
     if params.fromKey:
-        return PrivateKey.from_string(params.fromKey).public_key().to_string_der()
+        return _format_generated_public_key(PrivateKey.from_string(params.fromKey).public_key())
 
     if params.type == KeyType.ED25519_PUBLIC_KEY:
         private_key = PrivateKey.generate_ed25519()
@@ -72,7 +81,7 @@ def _handle_public_key(params: KeyGenerationParams, response: KeyGenerationRespo
     if is_list:
         response.privateKeys.append(private_key.to_string_der())
 
-    return private_key.public_key().to_string_der()
+    return _format_generated_public_key(private_key.public_key())
 
 
 def _handle_key_list(params: KeyGenerationParams, response: KeyGenerationResponse) -> str:

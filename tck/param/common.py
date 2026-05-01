@@ -34,11 +34,16 @@ class CommonTransactionParams:
         """Apply commonTransactionParams to a given transaction."""
         if self.transactionId is not None:
             try:
-                transaction.set_transaction_id(TransactionId.from_string(self.transactionId))
+                transaction.set_transaction_id(
+                    TransactionId.from_string(self.transactionId)
+                )
             except Exception:
-                transaction.set_transaction_id(TransactionId.generate(AccountId.from_string(self.transactionId)))
+                transaction.set_transaction_id(
+                    TransactionId.generate(AccountId.from_string(self.transactionId))
+                )
 
-        # TODO add a max_transaction_fee sdk missing func
+        if self.maxTransactionFee is not None:
+            transaction.transaction_fee = int(self.maxTransactionFee)
 
         if self.validTransactionDuration is not None:
             transaction.set_transaction_valid_duration(self.validTransactionDuration)
