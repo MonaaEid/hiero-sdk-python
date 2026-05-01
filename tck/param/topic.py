@@ -54,7 +54,7 @@ class CreateTopicCustomFeeParams:
 @dataclass
 class CreateTopicParams(BaseTransactionParams):
     """Parameters for creating a topic. Extends BaseTransactionParams to include common transaction parameters."""
-   
+
     memo: str | None = None
     adminKey: str | None = None
     submitKey: str | None = None

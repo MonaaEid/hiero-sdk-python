@@ -81,7 +81,7 @@ def test_build_custom_fee_and_reject_empty_collector():
     with pytest.raises(ValueError, match="feeCollectorAccountId cannot be empty"):
         _build_custom_fee(
             CreateTopicCustomFeeParams(feeCollectorAccountId="", fixedFee=CreateTopicFixedFeeParams(amount=1))
-            )
+        )
 
 
 def test_build_transaction_core_fields():
