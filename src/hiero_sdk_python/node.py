@@ -136,15 +136,7 @@ class _Node:
                 self._node_pem_cert = self._fetch_server_certificate_pem()
 
             if not self._node_pem_cert:
-                if self._verify_certificates:
-                    raise ValueError(
-                        "No certificate available. Cannot establish a secure channel while "
-                        "certificate verification is enabled."
-                    )
-                # Certificate verification is disabled - fall back to a
-                # plaintext channel rather than failing the whole call
-                self._address = self._address._to_insecure()
-                return self._get_channel()
+                raise ValueError("No certificate available.")
 
             # Validate certificate if verification is enabled
             if self._verify_certificates:

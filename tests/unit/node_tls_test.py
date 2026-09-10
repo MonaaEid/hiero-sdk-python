@@ -334,27 +334,24 @@ def test_secure_connect_raise_error_if_no_certificate_is_available(
 
 
 @patch("socket.create_connection", side_effect=ConnectionRefusedError)
+@patch("grpc.secure_channel")
 @patch("grpc.insecure_channel")
-def test_secure_connect_falls_back_to_insecure_when_verification_disabled(
+def test_secure_connect_raises_when_no_certificate_even_with_verification_disabled(
     mock_insecure,
+    mock_secure,
     mock_conn,
     mock_node_without_address_book,
 ):
-    """When TLS is required but no cert can be fetched and verification is disabled, fall back to plaintext."""
+    """No certificate fails closed, even if certificate verification is disabled."""
     node = mock_node_without_address_book
     node._apply_transport_security(True)
     node._set_verify_certificates(False)
 
-    mock_channel = Mock()
-    mock_insecure.return_value = mock_channel
+    with pytest.raises(ValueError, match="No certificate available."):
+        node._get_channel()
 
-    channel = node._get_channel()
-
-    assert channel is not None
-    # The address was converted back to the plaintext port and an insecure channel was used
-    assert node._address._is_transport_security() is False
-    assert node._address._get_port() == 50211
-    mock_insecure.assert_called_once()
+    mock_secure.assert_not_called()
+    mock_insecure.assert_not_called()
 
 
 @patch("grpc.secure_channel")
